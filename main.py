@@ -23,7 +23,7 @@ class Window(QMainWindow, Ui_MainWindow):
 
 
     def openFile(self):
-        filename, _ = QFileDialog.getOpenFileName(self, 'Выбрать файл', self.work_dir, 'Excel файлы (*.xlsx)')
+        filename, _ = QFileDialog.getOpenFileName(self, 'Выбрать файл',' self.work_dir', 'Excel файлы (*.xlsx)')
         self.work_dir = '/'.join(filename.split('/')[:-1])
         if filename:
             if self.sender() == self.openBaseScheduleBtn:
@@ -37,9 +37,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def compare_files(self):
 
-        # self.base_schedule = row_normalization(self.base_schedule)
-        # self.new_schedule = row_normalization(self.new_schedule)
-        # bold_difference(self.base_schedule, self.new_schedule)
+        self.base_schedule = row_normalization(self.base_schedule)
+        self.new_schedule = row_normalization(self.new_schedule)
+        bold_difference(self.base_schedule, self.new_schedule)
         self.new_schedule.save(f"{self.work_dir}/{self.newScheduleLabel.text().split('/')[1]}_checked.xlsx")
 
 

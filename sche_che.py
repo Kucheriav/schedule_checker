@@ -76,7 +76,26 @@ def bold_difference(old_wb, new_wb):
                 new_ws.cell(row, col).font = dif_cell_font
 
 
+def bold_difference_v2(old_wb, new_wb):
+    dif_cell_font = Font(bold=True)
+    old_ws = old_wb.active
+    new_ws = new_wb.active
+    row = 1
+    while row < new_ws.max_row:
+        if 'Класс' in new_ws.cell(row, 1).value:
+            old_row = ''
+            for x in range(1,old_ws.max_row + 1):
+                if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
+                    old_row = x
+                    break
+            if not old_row:
+                print('No matches')
+                raise Exception
+            cur_new_row = row
+            cur_old_row = old_row
+            offset = 0
 
+        row += 1
 
 
 #
