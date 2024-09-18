@@ -4,8 +4,8 @@ from PyQt5.QtCore import QObject, pyqtSignal
 import argparse
 from tqdm import tqdm
 
-class Sche_Che(QObject):
-    progressChanged = pyqtSignal(int)
+class FilePreparator(QObject):
+    preparation_progress = pyqtSignal(int)
 
     def row_normalization(self, wb):
         # будем приводить в единый вид все файлы
@@ -39,7 +39,6 @@ class Sche_Che(QObject):
                 #     cell_out.font = copy(cell_in.font)
                 #     cell_out.fill = copy(cell_in.fill)
                 #     cell_out.border = copy(cell_in.border)
-                row += 1
             else:
                 ws_out.append([cell.value for cell in ws[row]])
                 row += 1
@@ -48,7 +47,8 @@ class Sche_Che(QObject):
                     if ws_out.cell(ws_out.max_row, col).value is None:
                         ws_out.merge_cells(start_row=ws_out.max_row - 1, start_column=col, end_row=ws_out.max_row,
                                            end_column=col)
-                row += 1
+            self.preparation_progress.emit(row)
+            row += 1
             pbar.update(1)
         pbar.close()
         # постобработка
@@ -65,7 +65,8 @@ class Sche_Che(QObject):
 
         return wb_out
 
-
+class DifferenceEngine(QObject):
+    checking_progress = pyqtSignal(int)
     def bold_difference(self, old_wb, new_wb):
         dif_cell_font = Font(bold=True)
         old_ws = old_wb.active
@@ -84,15 +85,17 @@ class Sche_Che(QObject):
         old_ws = old_wb.active
         new_ws = new_wb.active
         row = 1
+        old_row = 1
         while row < new_ws.max_row:
             if 'Класс' in str(new_ws.cell(row, 1).value):
                 print(new_ws.cell(row, 1).value, row)
-                old_row = ''
-                for x in range(1, old_ws.max_row + 1):
+                flag = False
+                for x in range(old_row, old_ws.max_row + 1):
                     if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
                         old_row = x
+                        flag = True
                         break
-                if not old_row:
+                if not flag:
                     print('No matches')
                     raise Exception
                 cur_new_row = row + 2
@@ -100,6 +103,8 @@ class Sche_Che(QObject):
                 while not (new_ws.cell(cur_new_row, 1).value is None and new_ws.cell(cur_new_row + 1, 1).value is None):
                     for col in range(1, len(new_ws[cur_new_row]) + 1):
                         if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
+                            if new_ws.cell(cur_new_row, col).value is None:
+                                new_ws.cell(cur_new_row, col).value = '-окно-'
                             new_ws.cell(cur_new_row, col).font = dif_cell_font
                     cur_old_row += 1
                     cur_new_row += 1

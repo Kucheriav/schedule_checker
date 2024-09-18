@@ -1,7 +1,7 @@
 from design import Ui_MainWindow
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
 from openpyxl import load_workbook, Workbook
-from sche_che import Sche_Che
+from sche_che import FilePreparator, DifferenceEngine
 import sys
 
 
@@ -19,8 +19,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.base_schedule = None
         self.new_schedule = None
         self.findChangesBtn.setEnabled(False)
-        self.schedule_checker = Sche_Che()
+        self.old_file_preparation_task = FilePreparator()
+        self.new_file_preparation_task = FilePreparator()
+        self.difference_search_task = DifferenceEngine()
+        self.baseProgressBar.setValue(0)
 
+        self.old_file_preparation_task.preparation_progress.connect(self.baseProgressBar.setValue)
+        self.newProgressBar.setValue(0)
+        self.new_file_preparation_task.preparation_progress.connect(self.newProgressBar.setValue)
 
     def openFile(self):
         filename, _ = QFileDialog.getOpenFileName(self, 'Выбрать файл',' self.work_dir', 'Excel файлы (*.xlsx)')
@@ -37,9 +43,13 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def compare_files(self):
 
-        self.base_schedule = row_normalization(self.base_schedule)
-        self.new_schedule = row_normalization(self.new_schedule)
-        bold_difference_v2(self.base_schedule, self.new_schedule)
+        self.baseProgressBar.setMaximum(self.base_schedule.active.max_row)
+        self.base_schedule = self.old_file_preparation_task.row_normalization(self.base_schedule)
+
+        self.newProgressBar.setMaximum(self.new_schedule.active.max_row)
+        self.new_schedule = self.new_file_preparation_task.row_normalization(self.new_schedule)
+
+        self.difference_search_task.bold_difference_v2(self.base_schedule, self.new_schedule)
         self.new_schedule.save(f"{self.work_dir}/{self.newScheduleLabel.text().split('/')[1]}_checked.xlsx")
 
 
