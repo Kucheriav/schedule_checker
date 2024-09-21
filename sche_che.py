@@ -4,8 +4,43 @@ from PyQt5.QtCore import QObject, pyqtSignal
 import argparse
 from tqdm import tqdm
 
+import pandas as pd
+from db_models import Class, Schedule, Teacher, TeacherSchedule, Cabinet
+from database import get_db
+
+def load_data_from_excel(file_path):
+    # Пример загрузки данных из Excel файла
+    df = pd.read_excel(file_path)
+    db = next(get_db())
+
+    for index, row in df.iterrows():
+        class_ = Class(name=row['class_name'])
+        db.add(class_)
+        db.commit()
+
+        schedule = Schedule(class_id=class_.id, day=row['day'], lesson_number=row['lesson_number'], subject=row['subject'], cabinet=row['cabinet'])
+        db.add(schedule)
+        db.commit()
+
+    db.close()
+
+def export_data_to_excel(file_path):
+    # Пример экспорта данных в Excel файл
+    db = next(get_db())
+    schedules = db.query(Schedule).all()
+    df = pd.DataFrame([schedule.__dict__ for schedule in schedules])
+    df.to_excel(file_path, index=False)
+    db.close()
+
+
+
+
+
+
+
 class FilePreparator(QObject):
     preparation_progress = pyqtSignal(int)
+
 
     def row_normalization(self, wb):
         # будем приводить в единый вид все файлы
@@ -65,6 +100,62 @@ class FilePreparator(QObject):
 
         return wb_out
 
+    def row_normalization_single_line(self, wb):
+        # ае! я поборол это дело без дублирования строк!
+
+        # тащемта у нас всего два проблемных случая спаренной по вертикали строки
+        # это когда шапка класса и собственно урок в двух кабинетах
+        ws = wb.active
+        wb_out = Workbook()
+        ws_out = wb_out.active
+
+        merged_cells = ws.merged_cells.ranges
+        row = 1
+        row_out = 1
+
+        pbar = tqdm(total=ws.max_row)
+        while row < ws.max_row:
+            # делаем шапку класса
+            if ws.cell(row, 1).value and ws.cell(row, 1).value == '#':
+                ws_out.append([None for x in range(11)])
+                ws_out.append([None for x in range(11)])
+                ws_out.merge_cells(start_row=row_out, start_column=1, end_row=row_out + 1, end_column=1)
+                ws_out.cell(row_out, 1).value = '№'
+                for i in range(5):
+                    ws_out.merge_cells(start_row=row_out, start_column=2 + i * 2, end_row=row_out,
+                                       end_column=2 + i * 2 + 1)
+                    ws_out.cell(row_out, 2 + i * 2).value = ws.cell(row, 2 + i * 2).value
+                    ws_out.cell(row_out + 1, 2 + i * 2).value = ws.cell(row + 1, 2 + i * 2).value
+                    ws_out.cell(row_out + 1, 2 + i * 2 + 1).value = ws.cell(row + 1, 2 + i * 2 + 1).value
+                row += 2
+                row_out += 2
+                pbar.update(2)
+            # случай спаренной строки урока
+            elif (any(ws.cell(row, 1).coordinate in range_str for range_str in merged_cells) and ws.cell(row, 1).value
+                  and not ws.cell(row, 1).value == '#' and not 'Класс' in str(ws.cell(row, 1).value)):
+                this_row = ws[row]
+                next_row = ws[row + 1]
+                for this_row_cell, next_row_cell in zip(this_row, next_row):
+                    if next_row_cell.value is not None:
+                        this_row_cell.value = f'{this_row_cell.value}\n{next_row_cell.value}'
+                ws_out.append([cell.value for cell in this_row])
+                if ':' in str(ws_out.cell(row_out, 1).value):
+                    ws_out.cell(row_out, 1).value = str(ws_out.cell(row_out, 1).value)[:5]
+                row += 2
+                row_out += 1
+                pbar.update(2)
+            else:
+                #все остальные случаи не содержат объединений на вертикали, так что пофиг
+                ws_out.append([cell.value for cell in ws[row]])
+                if ':' in str(ws_out.cell(row_out, 1).value):
+                    ws_out.cell(row_out, 1).value = str(ws_out.cell(row_out, 1).value)[1:5]
+                row += 1
+                row_out += 1
+                pbar.update(1)
+        pbar.close()
+        return wb_out
+
+
 class DifferenceEngine(QObject):
     checking_progress = pyqtSignal(int)
     def bold_difference(self, old_wb, new_wb):
@@ -110,10 +201,24 @@ class DifferenceEngine(QObject):
                     cur_new_row += 1
                 row = cur_new_row
             row += 1
+        return new_wb
 
 
-#
-if __name__ == '__main__':
+    def day_assemble(self, wb, day):
+        res_wb = Workbook()
+        res_ws = res_wb.active
+        ws = wb.active
+
+
+class SearchSystem(QObject):
+    preparation_progress = pyqtSignal(int)
+
+    def search_teacher_window_by_lesson_n(self, wb, teacher_name, day_n_0, lesson_n):
+        # ws
+        pass
+
+
+def console_init():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--new_file', help='input filename')
     parser.add_argument('-o', '--old_file', help='input filename')
@@ -130,3 +235,69 @@ if __name__ == '__main__':
     bold_difference(old_wb, new_wb)
     print('done!')
     new_wb.save(f'{args.new_file.split(".")[0]}_checked.xlsx')
+
+
+def create_common_teacher_schedule(school_wb):
+    MAX_COL = 111
+    wb_out = Workbook()
+    ws_out = wb_out.active
+    for i in range(8):
+        ws_out.append([None for i in range(56)])
+    ws_out.merge_cells(start_row=1, start_column=1, end_row=6, end_column=56)
+    ws_out.cell(1, 1).value = 'Расписание уроков на 2024-2025'
+    ws_out.merge_cells(start_row=7, start_column=1, end_row=8, end_column=1)
+    ws_out.cell(7, 1).value = 'Ф.И.О.'
+    days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
+    for i in range(5):
+        ws_out.merge_cells(start_row=7, start_column=2 + i * 11, end_row=7, end_column=2 + (i + 1) * 11 - 1)
+        ws_out.cell(7, 2 + i * 11).value = days[i]
+        for j in range(11):
+            ws_out.cell(8, 2 + i * 11 + j).value = j + 1
+    ws = school_wb.active
+
+    row = 8
+    pbar = tqdm(total=ws.max_row - row + 1)
+    while row <= ws.max_row:
+        cur_row = list()
+        cur_row.append(str(ws.cell(row, 1).value))
+        col = 2
+        while col < MAX_COL:
+            if ws.cell(row, col).value:
+                this_class = str(ws.cell(row, col).value)
+                if '_' in this_class:
+                    # тут тогда Г Е И получаются в 11б
+                    # res = list()
+                    # for x in this_class.split(','):
+                    #     y = x.split('_')
+                    #     print(y, row, col)
+                    #     res.append(y[0].strip() + y[1][0].upper())
+                    # this_class = ', '.join(res)
+                    this_class = this_class.split('_')[0]
+                this_room = str(ws.cell(row, col + 1).value)
+                if 'С' in this_room:
+                    this_room = 'СЗ'
+                if "П" in this_room:
+                    this_room = 'П'
+                cur_row.append('\n'.join((this_class, this_room)))
+            else:
+                cur_row.append(None)
+            col += 2
+        ws_out.append(cur_row)
+        row += 1
+        pbar.update(1)
+    pbar.close()
+
+
+    return wb_out
+
+
+def create_common_pupils_schedule(normalized_wb):
+    pass
+
+
+
+
+if __name__ == '__main__':
+    wb_in = load_workbook('учительское раписание.xlsx')
+    wb_res = create_common_teacher_schedule(wb_in)
+    wb_res.save('teachers_schedule.xlsx')

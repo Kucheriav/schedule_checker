@@ -3,7 +3,15 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
 from openpyxl import load_workbook, Workbook
 from sche_che import FilePreparator, DifferenceEngine
 import sys
+from database import init_db, get_db
+from db_controller import MainController
+from sche_che import load_data_from_excel, export_data_to_excel
 
+def check_database_empty():
+    db = next(get_db())
+    count = db.query("SELECT COUNT(*) FROM classes").scalar()
+    db.close()
+    return count == 0
 
 class Window(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -49,18 +57,37 @@ class Window(QMainWindow, Ui_MainWindow):
         self.newProgressBar.setMaximum(self.new_schedule.active.max_row)
         self.new_schedule = self.new_file_preparation_task.row_normalization(self.new_schedule)
 
-        self.difference_search_task.bold_difference_v2(self.base_schedule, self.new_schedule)
-        self.new_schedule.save(f"{self.work_dir}/{self.newScheduleLabel.text().split('/')[1]}_checked.xlsx")
+        checked_schedule = self.difference_search_task.bold_difference_v2(self.base_schedule, self.new_schedule)
+
+        if self.checkBox.isChecked():
+            checked_schedule = self.difference_search_task.day_assemble(checked_schedule, self.comboBox.currentIndex())
+
+        checked_schedule.save(f"{self.work_dir}/{self.newScheduleLabel.text().split('/')[1]}_checked.xlsx")
 
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
 # обвязка для запуска
-app = QApplication(sys.argv)
-ex = Window()
-ex.show()
-sys.excepthook = except_hook
-sys.exit(app.exec_())
+if __name__ == '__main__':
+    init_db()
+    controller = MainController()
+
+    if check_database_empty():
+        print("База данных пуста. Загрузка данных из Excel файла.")
+        load_data_from_excel('input.xlsx')
+
+    # Выполнение задач
+    controller.run()
+
+    # Экспорт данных в Excel файл
+    export_data_to_excel('output.xlsx')
+
+    controller.close()
+    app = QApplication(sys.argv)
+    ex = Window()
+    ex.show()
+    sys.excepthook = except_hook
+    sys.exit(app.exec_())
 
 
