@@ -1,5 +1,5 @@
 from openpyxl import load_workbook, Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Alignment
 from PyQt5.QtCore import QObject, pyqtSignal
 import argparse
 from tqdm import tqdm
@@ -7,6 +7,9 @@ from tqdm import tqdm
 import pandas as pd
 from db_models import Class, Schedule, Teacher, TeacherSchedule, Cabinet
 from database import get_db
+
+
+DAYS = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
 
 def load_data_from_excel(file_path):
     # Пример загрузки данных из Excel файла
@@ -247,14 +250,12 @@ def create_common_teacher_schedule(school_wb):
     ws_out.cell(1, 1).value = 'Расписание уроков на 2024-2025'
     ws_out.merge_cells(start_row=7, start_column=1, end_row=8, end_column=1)
     ws_out.cell(7, 1).value = 'Ф.И.О.'
-    days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
     for i in range(5):
         ws_out.merge_cells(start_row=7, start_column=2 + i * 11, end_row=7, end_column=2 + (i + 1) * 11 - 1)
-        ws_out.cell(7, 2 + i * 11).value = days[i]
+        ws_out.cell(7, 2 + i * 11).value = DAYS[i]
         for j in range(11):
             ws_out.cell(8, 2 + i * 11 + j).value = j + 1
     ws = school_wb.active
-
     row = 8
     pbar = tqdm(total=ws.max_row - row + 1)
     while row <= ws.max_row:
@@ -292,12 +293,72 @@ def create_common_teacher_schedule(school_wb):
 
 
 def create_common_pupils_schedule(normalized_wb):
-    pass
+    N_CLASS = 30
+    MAX_COL = N_CLASS * 2 + 4
 
+    def create_frame():
+        for i in range(56):
+            ws_out.append([None for x in range(MAX_COL)])
+        for i in range(1, 6):
+            ws_out.merge_cells(start_row=i, start_column=1, end_row=i, end_column=11)
+        for i in range(5):
+            ws_out.merge_cells(start_row=7 + i * 10, start_column=1, end_row=7 + (i + 1) * 10 - 2, end_column=1)
+            ws_out.cell(7 + i * 10, 1).alignment = Alignment(textRotation=90)
+            ws_out.cell(7 + i * 10, 1).value = DAYS[i]
+            ws_out.merge_cells(start_row=7 + i * 10, start_column=MAX_COL, end_row=7 + (i + 1) * 10 - 2, end_column=MAX_COL)
+            ws_out.cell(7 + i * 10, 1).alignment = Alignment(textRotation=90)
+            ws_out.cell(7 + i * 10, MAX_COL).value = DAYS[i]
+            for j in range(9):
+                ws_out.cell(7 + i * 10 + j, 2).value = j + 1
+                ws_out.cell(7 + i * 10 + j, MAX_COL - 1).value = j + 1
+        ws_out.cell(6, 1).alignment = Alignment(textRotation=90)
+        ws_out.cell(6, 1).value = 'День'
+        ws_out.cell(6, 2).alignment = Alignment(textRotation=90)
+        ws_out.cell(6, 2).value = 'Урок'
+        ws_out.cell(6, MAX_COL).alignment = Alignment(textRotation=90)
+        ws_out.cell(6, MAX_COL).value = 'День'
+        ws_out.cell(6, MAX_COL - 1).alignment = Alignment(textRotation=90)
+        ws_out.cell(6, MAX_COL - 1).value = 'Урок'
 
+    wb_out = Workbook()
+    ws_out = wb_out.active
+    ws_in = normalized_wb.active
+    create_frame()
+    class_counter = 0
+    pbar = tqdm(total=ws_in.max_row)
+    row_in = 1
+    while row_in < ws_in.max_row:
+        if not ws_in.cell(row_in, 1).value or 'Класс' not in ws_in.cell(row_in, 1).value:
+            pbar.update(1)
+            row_in += 1
+            continue
+        this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+        ws_out.cell(6, 3 + class_counter * 2).value = this_class
+        # if '11б_инж' in ws_out.cell(6, 3 + class_counter * 2).value:
+        #     break
+        row_in += 3
+        pbar.update(3)
+        lesson_counter = 0
+        while ws_in.cell(row_in, 1).value:
+            for day_counter in range(5):
+                lesson = ws_in.cell(row_in, 2 + day_counter * 2).value
+                cabinet = ws_in.cell(row_in, 2 + day_counter * 2 + 1).value
+                if lesson:
+                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = lesson
+                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value = cabinet
+                if '5' in this_class:
+                    print('in', lesson, cabinet, 'out', 7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2, 7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1)
 
+            lesson_counter += 1
+            pbar.update(1)
+            row_in += 1
+            continue
+        class_counter += 1
+    return wb_out
 
 if __name__ == '__main__':
-    wb_in = load_workbook('учительское раписание.xlsx')
-    wb_res = create_common_teacher_schedule(wb_in)
-    wb_res.save('teachers_schedule.xlsx')
+    wb_in = load_workbook('классы все.xlsx')
+    prep = FilePreparator()
+    wb_in = prep.row_normalization_single_line(wb_in)
+    wb_res = create_common_pupils_schedule(wb_in)
+    wb_res.save('test.xlsx')
