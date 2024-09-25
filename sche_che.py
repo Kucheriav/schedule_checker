@@ -10,6 +10,12 @@ from database import get_db
 
 
 DAYS = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
+CABINETS_WITH_EL_SCHOOL = ['101', '102', '103', '107', '201', '202', '203', '204', '205', '206', '207', '208', '209', '301', '302',
+            '303', '304', '305', '306', '307', '308', '401', '402', '403', '404', '405', '406', '407', '408', '409',
+            '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
+CABINETS = ['101', '102', '107', '208', '209', '301', '302', '303', '304', '305', '306', '307', '308', '401', '402',
+            '403', '404', '405', '406', '407', '408', '409', '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
+
 
 def load_data_from_excel(file_path):
     # Пример загрузки данных из Excel файла
@@ -241,40 +247,46 @@ def console_init():
 
 
 def create_common_teacher_schedule(school_wb):
-    MAX_COL = 111
+    ELEMENTARY_SCHOOL_TEACHERS = {'Балахонова Е. М.', 'Горбачева Е. В.', 'Домашенкина О. В.', 'Киселева Н. И.',
+                                  'Стражева Г. Н.', 'Чаркина О. В.', 'Ченцова Е. Н.', 'Даймичева Р. Ф.', 'Тихоненкова А. Н.',
+                                  'Смагина М. А.', 'Хретинина А. А.', 'Доронкина Л. В.', 'Мазина О. А.', 'Саватеева Г. А.',
+                                  'Соколова Я. А.'}
+    MAX_COL_INPUT_FILE = 111
+    LESSONS_N = 11
+    MAX_COL_OUTPUT_FILE = LESSONS_N * len(DAYS) + 3
     wb_out = Workbook()
     ws_out = wb_out.active
     for i in range(8):
-        ws_out.append([None for i in range(56)])
-    ws_out.merge_cells(start_row=1, start_column=1, end_row=6, end_column=56)
+        ws_out.append([None for i in range(MAX_COL_OUTPUT_FILE)])
+    ws_out.merge_cells(start_row=1, start_column=1, end_row=6, end_column=MAX_COL_OUTPUT_FILE)
     ws_out.cell(1, 1).value = 'Расписание уроков на 2024-2025'
-    ws_out.merge_cells(start_row=7, start_column=1, end_row=8, end_column=1)
-    ws_out.cell(7, 1).value = 'Ф.И.О.'
+    ws_out.merge_cells(start_row=7, start_column=2, end_row=8, end_column=2)
+    ws_out.cell(7, 2).value = 'Ф.И.О.'
     for i in range(5):
-        ws_out.merge_cells(start_row=7, start_column=2 + i * 11, end_row=7, end_column=2 + (i + 1) * 11 - 1)
-        ws_out.cell(7, 2 + i * 11).value = DAYS[i]
+        ws_out.merge_cells(start_row=7, start_column=3 + i * 11, end_row=7, end_column=3 + (i + 1) * 11 - 1)
+        ws_out.cell(7, 3 + i * 11).value = DAYS[i]
         for j in range(11):
-            ws_out.cell(8, 2 + i * 11 + j).value = j + 1
+            ws_out.cell(8, 3 + i * 11 + j).value = j + 1
     ws = school_wb.active
-    row = 8
-    pbar = tqdm(total=ws.max_row - row + 1)
-    while row <= ws.max_row:
-        cur_row = list()
-        cur_row.append(str(ws.cell(row, 1).value))
-        col = 2
-        while col < MAX_COL:
-            if ws.cell(row, col).value:
-                this_class = str(ws.cell(row, col).value)
+    input_file_row = 8
+    pbar = tqdm(total=ws.max_row - input_file_row + 1)
+    teacher_counter = 1
+    while input_file_row <= ws.max_row:
+        cur_row = [teacher_counter]
+        teacher = str(ws.cell(input_file_row, 1).value)
+        # if teacher in ELEMENTARY_SCHOOL_TEACHERS or teacher == 'None':
+        if teacher == 'None':
+            input_file_row += 1
+            pbar.update(1)
+            continue
+        cur_row.append(teacher)
+        input_file_col = 2
+        while input_file_col < MAX_COL_INPUT_FILE:
+            if ws.cell(input_file_row, input_file_col).value:
+                this_class = str(ws.cell(input_file_row, input_file_col).value)
                 if '_' in this_class:
-                    # тут тогда Г Е И получаются в 11б
-                    # res = list()
-                    # for x in this_class.split(','):
-                    #     y = x.split('_')
-                    #     print(y, row, col)
-                    #     res.append(y[0].strip() + y[1][0].upper())
-                    # this_class = ', '.join(res)
                     this_class = this_class.split('_')[0]
-                this_room = str(ws.cell(row, col + 1).value)
+                this_room = str(ws.cell(input_file_row, input_file_col + 1).value)
                 if 'С' in this_room:
                     this_room = 'СЗ'
                 if "П" in this_room:
@@ -282,12 +294,29 @@ def create_common_teacher_schedule(school_wb):
                 cur_row.append('\n'.join((this_class, this_room)))
             else:
                 cur_row.append(None)
-            col += 2
+            input_file_col += 2
+        cur_row.append(teacher_counter)
         ws_out.append(cur_row)
-        row += 1
+        input_file_row += 1
+        teacher_counter += 1
         pbar.update(1)
     pbar.close()
 
+    ws_out.append([None for x in range(MAX_COL_OUTPUT_FILE)])
+    for output_file_col in range(3, MAX_COL_OUTPUT_FILE):
+        free_cabinets = CABINETS_WITH_EL_SCHOOL[:]
+        for output_file_row in range(9, 9 + teacher_counter - 1):
+            if this_cell := ws_out.cell(output_file_row, output_file_col).value:
+                cabinet = this_cell.split('\n')[1]
+                if '(' in cabinet:
+                    cabinet = cabinet[:-3]
+                if cabinet in free_cabinets:
+                    free_cabinets.remove(cabinet)
+                else:
+                    print('EXCEPTION WHILE SEARCHING FREE CABINETS!')
+                    print(output_file_row, output_file_col, cabinet)
+                    print(free_cabinets)
+        ws_out.cell(9 + teacher_counter - 1, output_file_col).value = '\n'.join(free_cabinets)
 
     return wb_out
 
@@ -357,8 +386,8 @@ def create_common_pupils_schedule(normalized_wb):
     return wb_out
 
 if __name__ == '__main__':
-    wb_in = load_workbook('классы все.xlsx')
+    wb_in = load_workbook('школа.xlsx')
     prep = FilePreparator()
-    wb_in = prep.row_normalization_single_line(wb_in)
-    wb_res = create_common_pupils_schedule(wb_in)
+    # wb_in = prep.row_normalization_single_line(wb_in)
+    wb_res = create_common_teacher_schedule(wb_in)
     wb_res.save('test.xlsx')
