@@ -3,8 +3,8 @@ from openpyxl.styles import Font, Alignment
 from PyQt5.QtCore import QObject, pyqtSignal
 import argparse
 from tqdm import tqdm
+from openpyxl.utils import get_column_letter
 
-import pandas as pd
 from db_models import Class, Schedule, Teacher, TeacherSchedule, Cabinet
 from database import get_db
 
@@ -15,7 +15,6 @@ CABINETS_WITH_EL_SCHOOL = ['101', '102', '103', '107', '201', '202', '203', '204
             '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
 CABINETS = ['101', '102', '107', '208', '209', '301', '302', '303', '304', '305', '306', '307', '308', '401', '402',
             '403', '404', '405', '406', '407', '408', '409', '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
-
 
 def load_data_from_excel(file_path):
     # Пример загрузки данных из Excel файла
@@ -321,6 +320,8 @@ def create_common_teacher_schedule(school_wb):
     return wb_out
 
 
+
+
 def create_common_pupils_schedule(normalized_wb):
     N_CLASS = 30
     MAX_COL = N_CLASS * 2 + 4
@@ -353,6 +354,7 @@ def create_common_pupils_schedule(normalized_wb):
     ws_out = wb_out.active
     ws_in = normalized_wb.active
     create_frame()
+    wb_out.save('what.xlsx')
     class_counter = 0
     pbar = tqdm(total=ws_in.max_row)
     row_in = 1
@@ -369,25 +371,35 @@ def create_common_pupils_schedule(normalized_wb):
         pbar.update(3)
         lesson_counter = 0
         while ws_in.cell(row_in, 1).value:
+
             for day_counter in range(5):
                 lesson = ws_in.cell(row_in, 2 + day_counter * 2).value
-                cabinet = ws_in.cell(row_in, 2 + day_counter * 2 + 1).value
+                cabinet = str(ws_in.cell(row_in, 2 + day_counter * 2 + 1).value)
                 if lesson:
+                    if 'С' in cabinet:
+                        cabinet = 'СЗ'
+                    if "П" in cabinet:
+                        cabinet = 'П'
+                    if "А" in cabinet:
+                        cabinet = 'АЗ'
                     ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = lesson
                     ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value = cabinet
-                if '5' in this_class:
-                    print('in', lesson, cabinet, 'out', 7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2, 7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1)
-
             lesson_counter += 1
             pbar.update(1)
             row_in += 1
             continue
         class_counter += 1
+    for col in range(3, MAX_COL):
+        if col % 2 == 0:
+            ws_out.column_dimensions[get_column_letter(col)].width = 38 * 0.138
+        else:
+            ws_out.column_dimensions[get_column_letter(col)].width = 125 * 0.138
     return wb_out
 
 if __name__ == '__main__':
-    wb_in = load_workbook('школа.xlsx')
+    wb_in = load_workbook('классы 26.09.xlsx')
     prep = FilePreparator()
-    # wb_in = prep.row_normalization_single_line(wb_in)
-    wb_res = create_common_teacher_schedule(wb_in)
+    wb_in = prep.row_normalization_single_line(wb_in)
+    wb_in.save('classes_norm.xlsx')
+    wb_res = create_common_pupils_schedule(wb_in)
     wb_res.save('test.xlsx')

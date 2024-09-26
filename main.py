@@ -56,7 +56,8 @@ class Window(QMainWindow, Ui_MainWindow):
 
         self.newProgressBar.setMaximum(self.new_schedule.active.max_row)
         self.new_schedule = self.new_file_preparation_task.row_normalization(self.new_schedule)
-
+        if self.checkBox.isChecked():
+            print(self.comboBox.currentText())
         checked_schedule = self.difference_search_task.bold_difference_v2(self.base_schedule, self.new_schedule)
 
         if self.checkBox.isChecked():
