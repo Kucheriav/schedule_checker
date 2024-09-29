@@ -1,5 +1,5 @@
 from openpyxl import load_workbook, Workbook
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
 import argparse
 from tqdm import tqdm
@@ -199,12 +199,16 @@ class DifferenceEngine(QObject):
                     raise Exception
                 cur_new_row = row + 2
                 cur_old_row = old_row + 2
-                while not (new_ws.cell(cur_new_row, 1).value is None and new_ws.cell(cur_new_row + 1, 1).value is None):
+                while not (new_ws.cell(cur_new_row, 1).value is None):
                     for col in range(1, len(new_ws[cur_new_row]) + 1):
                         if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
                             if new_ws.cell(cur_new_row, col).value is None:
+                                print(cur_new_row, col)
                                 new_ws.cell(cur_new_row, col).value = '-окно-'
                             new_ws.cell(cur_new_row, col).font = dif_cell_font
+                            new_ws.cell(cur_new_row, col).fill = PatternFill(start_color='FF0000', end_color='FF0000',
+                                                                             fill_type='solid')
+
                     cur_old_row += 1
                     cur_new_row += 1
                 row = cur_new_row
@@ -397,9 +401,12 @@ def create_common_pupils_schedule(normalized_wb):
     return wb_out
 
 if __name__ == '__main__':
-    wb_in = load_workbook('классы 26.09.xlsx')
+    wb_in1 = load_workbook('классы 26 09 BASE.xlsx')
+    wb_in2 = load_workbook('пн 30 09 врем.xlsx')
     prep = FilePreparator()
-    wb_in = prep.row_normalization_single_line(wb_in)
-    wb_in.save('classes_norm.xlsx')
-    wb_res = create_common_pupils_schedule(wb_in)
-    wb_res.save('test.xlsx')
+    wb_in1 = prep.row_normalization_single_line(wb_in1)
+    wb_in2 = prep.row_normalization_single_line(wb_in2)
+    wb_in2.save('what.xlsx')
+    diff = DifferenceEngine()
+    wb_in = diff.bold_difference_v2(wb_in1, wb_in2)
+    wb_in.save('пт 27 врем diff.xlsx')
