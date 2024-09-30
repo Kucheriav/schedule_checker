@@ -354,23 +354,9 @@ def create_common_pupils_schedule(normalized_wb):
         ws_out.cell(6, MAX_COL - 1).alignment = Alignment(textRotation=90)
         ws_out.cell(6, MAX_COL - 1).value = 'Урок'
 
-    wb_out = Workbook()
-    ws_out = wb_out.active
-    ws_in = normalized_wb.active
-    create_frame()
-    wb_out.save('what.xlsx')
-    class_counter = 0
-    pbar = tqdm(total=ws_in.max_row)
-    row_in = 1
-    while row_in < ws_in.max_row:
-        if not ws_in.cell(row_in, 1).value or 'Класс' not in ws_in.cell(row_in, 1).value:
-            pbar.update(1)
-            row_in += 1
-            continue
-        this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+    def copying_middle_school():
+        nonlocal class_counter, row_in
         ws_out.cell(6, 3 + class_counter * 2).value = this_class
-        # if '11б_инж' in ws_out.cell(6, 3 + class_counter * 2).value:
-        #     break
         row_in += 3
         pbar.update(3)
         lesson_counter = 0
@@ -393,6 +379,72 @@ def create_common_pupils_schedule(normalized_wb):
             row_in += 1
             continue
         class_counter += 1
+
+    def merging_high_school():
+        nonlocal class_counter, row_in
+        # выход через return если во входящем файле след.класс  другой
+        while True:
+            this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+            ws_out.cell(6, 3 + class_counter * 2).value = this_class.split('_')[0]
+            row_in += 3
+            pbar.update(3)
+            lesson_counter = 0
+            while ws_in.cell(row_in, 1).value:
+                for day_counter in range(5):
+                    lesson = ws_in.cell(row_in, 2 + day_counter * 2).value
+                    cabinet = str(ws_in.cell(row_in, 2 + day_counter * 2 + 1).value)
+                    if lesson:
+                        if 'С' in cabinet:
+                            cabinet = 'СЗ'
+                        if "П" in cabinet:
+                            cabinet = 'П'
+                        if "А" in cabinet:
+                            cabinet = 'АЗ'
+
+                        # учитываем, что если у групп общий предмет - его не надо дублировать и подписывать группы
+                        if not ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value:
+                            ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = f'{this_class.split("_")[1]}-{lesson}'
+                            ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value = cabinet
+                        else:
+                            if ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value != cabinet:
+                                ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value += f'\n{this_class.split("_")[1]}-{lesson}'
+                                ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value += f'\n{cabinet}'
+                            else:
+                                ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = (
+                                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value.split('-'))[-1]
+
+                lesson_counter += 1
+                pbar.update(1)
+                row_in += 1
+                continue
+            # проверка на выход. если класс тот же - class counter не рогаем. это столбцы в выходном файле.
+            if not str(ws_in.cell(row_in + 1, 1).value).split(' - ')[-1].split('_')[0] == this_class.split('_')[0]:
+                class_counter += 1
+                return
+            else:
+                row_in += 1
+
+
+    wb_out = Workbook()
+    ws_out = wb_out.active
+    ws_in = normalized_wb.active
+    create_frame()
+    wb_out.save('what.xlsx')
+    class_counter = 0
+    pbar = tqdm(total=ws_in.max_row)
+    row_in = 1
+    while row_in < ws_in.max_row:
+        if not ws_in.cell(row_in, 1).value or 'Класс' not in ws_in.cell(row_in, 1).value:
+            pbar.update(1)
+            row_in += 1
+            continue
+        this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+        #  в 10/11 классах надо сливать профили
+        if '1' in this_class:
+            merging_high_school()
+        else:
+            copying_middle_school()
+
     for col in range(3, MAX_COL):
         if col % 2 == 0:
             ws_out.column_dimensions[get_column_letter(col)].width = 38 * 0.138
@@ -401,11 +453,11 @@ def create_common_pupils_schedule(normalized_wb):
     return wb_out
 
 if __name__ == '__main__':
-    wb_in1 = load_workbook('классы 19 09.xlsx')
-    wb_in2 = load_workbook('классы 26 09 BASE.xlsx')
+    # wb_in1 = load_workbook('классы 19 09.xlsx')
+    wb_in2 = load_workbook('классы 26 09 НОРМ.xlsx')
     prep = FilePreparator()
-    wb_in1 = prep.row_normalization_single_line(wb_in1)
-    wb_in2 = prep.row_normalization_single_line(wb_in2)
-    diff = DifferenceEngine()
-    wb_in = diff.bold_difference_v2(wb_in1, wb_in2)
-    wb_in.save('проверка различий.xlsx')
+    # wb_in1 = prep.row_normalization_single_line(wb_in1)
+    # wb_in2 = prep.row_normalization_single_line(wb_in2)
+    # wb_in2.save('классы 26 09 НОРМ.xlsx')
+    wb_in = create_common_pupils_schedule(wb_in2)
+    wb_in.save('test.xlsx')
