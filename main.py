@@ -1,7 +1,7 @@
 from design import Ui_MainWindow
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
 from openpyxl import load_workbook, Workbook
-from sche_che import FilePreparator, DifferenceEngine
+from sche_che import FuncToolBox, DifferenceEngine
 import sys
 from database import init_db, get_db
 from db_controller import MainController
@@ -27,14 +27,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.base_schedule = None
         self.new_schedule = None
         self.findChangesBtn.setEnabled(False)
-        self.old_file_preparation_task = FilePreparator()
-        self.new_file_preparation_task = FilePreparator()
+        self.old_file_preparation_task = FuncToolBox()
+        self.new_file_preparation_task = FuncToolBox()
         self.difference_search_task = DifferenceEngine()
         self.baseProgressBar.setValue(0)
 
-        self.old_file_preparation_task.preparation_progress.connect(self.baseProgressBar.setValue)
+        self.old_file_preparation_task.progress_status.connect(self.baseProgressBar.setValue)
         self.newProgressBar.setValue(0)
-        self.new_file_preparation_task.preparation_progress.connect(self.newProgressBar.setValue)
+        self.new_file_preparation_task.progress_status.connect(self.newProgressBar.setValue)
 
     def openFile(self):
         filename, _ = QFileDialog.getOpenFileName(self, 'Выбрать файл',' self.work_dir', 'Excel файлы (*.xlsx)')
@@ -58,7 +58,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.new_schedule = self.new_file_preparation_task.row_normalization(self.new_schedule)
         if self.checkBox.isChecked():
             print(self.comboBox.currentText())
-        checked_schedule = self.difference_search_task.bold_difference_v2(self.base_schedule, self.new_schedule)
+        checked_schedule = self.difference_search_task.bold_difference(self.base_schedule, self.new_schedule)
 
         if self.checkBox.isChecked():
             checked_schedule = self.difference_search_task.day_assemble(checked_schedule, self.comboBox.currentIndex())
@@ -69,22 +69,23 @@ class Window(QMainWindow, Ui_MainWindow):
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
-# обвязка для запуска
-if __name__ == '__main__':
+
+def working_with_classes():
     init_db()
     controller = MainController()
-
     if check_database_empty():
         print("База данных пуста. Загрузка данных из Excel файла.")
         load_data_from_excel('input.xlsx')
-
     # Выполнение задач
     controller.run()
-
     # Экспорт данных в Excel файл
     export_data_to_excel('output.xlsx')
-
     controller.close()
+
+
+# обвязка для запуска
+if __name__ == '__main__':
+
     app = QApplication(sys.argv)
     ex = Window()
     ex.show()
