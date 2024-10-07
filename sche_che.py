@@ -1,6 +1,7 @@
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
+import argparse
 from tqdm import tqdm
 from openpyxl.utils import get_column_letter
 
@@ -19,7 +20,6 @@ def load_data_from_excel(file_path):
     # Пример загрузки данных из Excel файла
     df = pd.read_excel(file_path)
     db = next(get_db())
-
     for index, row in df.iterrows():
         class_ = Class(name=row['class_name'])
         db.add(class_)
@@ -28,7 +28,6 @@ def load_data_from_excel(file_path):
         schedule = Schedule(class_id=class_.id, day=row['day'], lesson_number=row['lesson_number'], subject=row['subject'], cabinet=row['cabinet'])
         db.add(schedule)
         db.commit()
-
     db.close()
 
 def export_data_to_excel(file_path):
@@ -396,6 +395,25 @@ def checking_differences_scenario(file1, file2, normalized1=False, normalized2=F
         pass
 
 
+def printing_teachers_schedule_scenario(file):
+    toolbox = FuncToolBox()
+    wb = load_workbook(file)
+    res = toolbox.create_common_teacher_schedule(wb)
+    res.save(f'{file.split(".")[0]}_PRINT.xlsx')
+
+
+def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=True):
+    toolbox = FuncToolBox()
+    wb = load_workbook(file)
+    if not (normalized or 'NORM' in file):
+        wb = toolbox.row_normalization(wb)
+    if save_normalized and not 'NORM' in file:
+        wb.save(f'{file.split(".")[0]}_NORM.xlsx')
+    res = toolbox.create_common_pupils_schedule(wb)
+    res.save(f'{file.split(".")[0]}_PRINT.xlsx')
+
+
+
 
 if __name__ == '__main__':
-    checking_differences_scenario()
+    normalization_scenario('пятница 4 10.xlsx')

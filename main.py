@@ -1,7 +1,7 @@
 from design import Ui_MainWindow
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
 from openpyxl import load_workbook, Workbook
-from sche_che import FuncToolBox, DifferenceEngine
+from sche_che import FuncToolBox
 import sys
 from database import init_db, get_db
 from db_controller import MainController
@@ -29,7 +29,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.findChangesBtn.setEnabled(False)
         self.old_file_preparation_task = FuncToolBox()
         self.new_file_preparation_task = FuncToolBox()
-        self.difference_search_task = DifferenceEngine()
+        # self.difference_search_task = DifferenceEngine()
         self.baseProgressBar.setValue(0)
 
         self.old_file_preparation_task.progress_status.connect(self.baseProgressBar.setValue)
