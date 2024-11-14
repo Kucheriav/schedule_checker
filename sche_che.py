@@ -419,7 +419,6 @@ def printing_teachers_schedule_scenario(file):
     res = toolbox.create_common_teacher_schedule(wb)
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
 
-
 def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=True):
     toolbox = FuncToolBox()
     wb = load_workbook(file)
@@ -431,7 +430,6 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
 
 
-
 if __name__ == '__main__':
-    printing_teachers_schedule_scenario('школа.xlsx')
-    # checking_teachers_differences_scenario('школа_PRINT.xlsx', 'школа TEST CHECKER.xlsx')
+    # printing_teachers_schedule_scenario('школа.xlsx')
+    checking_teachers_differences_scenario('школа_PRINT.xlsx', 'школа TEST CHECKER.xlsx')
