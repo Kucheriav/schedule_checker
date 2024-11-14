@@ -14,31 +14,8 @@ CABINETS_WITH_EL_SCHOOL = ['101', '102', '103', '107', '201', '202', '203', '204
             '303', '304', '305', '306', '307', '308', '401', '402', '403', '404', '405', '406', '407', '408', '409',
             '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
 CABINETS = ['101', '102', '107', '208', '209', '301', '302', '303', '304', '305', '306', '307', '308', '401', '402',
-            '403', '404', '405', '406', '407', '408', '409', '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
-
-def load_data_from_excel(file_path):
-    # Пример загрузки данных из Excel файла
-    df = pd.read_excel(file_path)
-    db = next(get_db())
-    for index, row in df.iterrows():
-        class_ = Class(name=row['class_name'])
-        db.add(class_)
-        db.commit()
-
-        schedule = Schedule(class_id=class_.id, day=row['day'], lesson_number=row['lesson_number'], subject=row['subject'], cabinet=row['cabinet'])
-        db.add(schedule)
-        db.commit()
-    db.close()
-
-def export_data_to_excel(file_path):
-    # Пример экспорта данных в Excel файл
-    db = next(get_db())
-    schedules = db.query(Schedule).all()
-    df = pd.DataFrame([schedule.__dict__ for schedule in schedules])
-    df.to_excel(file_path, index=False)
-    db.close()
-
-
+            '403', '404', '405', '406', '407', '408', '409', '411', '412',  'СЗ', 'СЗ', 'СЗ', 'П']
+CABINETS_SET = set(CABINETS)
 
 class FuncToolBox(QObject):
     progress_status = pyqtSignal(int)
@@ -98,7 +75,7 @@ class FuncToolBox(QObject):
         pbar.close()
         return wb_out
 
-    def bold_difference(self, old_wb, new_wb):
+    def bold_difference_in_lessons_files(self, old_wb, new_wb):
         dif_cell_font = Font(bold=True)
         old_ws = old_wb.active
         new_ws = new_wb.active
@@ -134,7 +111,31 @@ class FuncToolBox(QObject):
             row += 1
         return new_wb
 
+    def bold_difference_in_school_schedule(self, old_wb, new_wb):
+        dif_cell_font = Font(bold=True)
+        old_ws = old_wb.active
+        new_ws = new_wb.active
+        new_ws_active_row = 9
+        old_ws_active_row = 9
+        while new_ws_active_row < new_ws.max_row:
+            if str(new_ws.cell(new_ws_active_row, 2).value) != str(old_ws.cell(new_ws_active_row, 2).value):
+                print(f'Расхождение в строке {new_ws_active_row}')
+                raise Exception
+            for col in range(1, len(new_ws[new_ws_active_row]) + 1):
+                if new_ws.cell(new_ws_active_row, col).value != old_ws.cell(old_ws_active_row, col).value:
+                    if new_ws.cell(new_ws_active_row, col).value is None:
+                        print(f'Изменения в {new_ws_active_row, col}: окно')
+                        new_ws.cell(new_ws_active_row, col).value = '-окно-'
+                    new_ws.cell(new_ws_active_row, col).font = dif_cell_font
+                    new_ws.cell(new_ws_active_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
+                                                                     fill_type='solid')
+                    print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
+            new_ws_active_row += 1
+            old_ws_active_row += 1
+        return new_wb
+
     def day_assemble(self, wb, day):
+        # UNDER CONSTRUCTION
         res_wb = Workbook()
         res_ws = res_wb.active
         ws_in = wb.active
@@ -185,17 +186,19 @@ class FuncToolBox(QObject):
         input_file_row = 8
         pbar = tqdm(total=ws.max_row - input_file_row + 1)
         teacher_counter = 1
+        busy_cabinets_list_of_sets = [set() for i in range(55)]
         while input_file_row <= ws.max_row:
             cur_row = [teacher_counter]
             teacher = str(ws.cell(input_file_row, 1).value)
-            # if teacher in ELEMENTARY_SCHOOL_TEACHERS or teacher == 'None':
-            if teacher == 'None':
+            if teacher in ELEMENTARY_SCHOOL_TEACHERS or teacher == 'None':
+            # if teacher == 'None':
                 input_file_row += 1
                 pbar.update(1)
                 continue
             cur_row.append(teacher)
             input_file_col = 2
             while input_file_col < MAX_COL_INPUT_FILE:
+                this_class = this_room = ''
                 if ws.cell(input_file_row, input_file_col).value:
                     this_class = str(ws.cell(input_file_row, input_file_col).value)
                     if '_' in this_class:
@@ -205,6 +208,9 @@ class FuncToolBox(QObject):
                         this_room = 'СЗ'
                     if "П" in this_room:
                         this_room = 'П'
+                    if input_file_col//2 - 1== 0:
+                        print(input_file_row, input_file_col, this_room)
+                    busy_cabinets_list_of_sets[input_file_col//2 - 1].add(this_room)
                     cur_row.append('\n'.join((this_class, this_room)))
                 else:
                     cur_row.append(None)
@@ -218,19 +224,25 @@ class FuncToolBox(QObject):
 
         ws_out.append([None for x in range(MAX_COL_OUTPUT_FILE)])
         for output_file_col in range(3, MAX_COL_OUTPUT_FILE):
-            free_cabinets = CABINETS_WITH_EL_SCHOOL[:]
-            for output_file_row in range(9, 9 + teacher_counter - 1):
-                if this_cell := ws_out.cell(output_file_row, output_file_col).value:
-                    cabinet = this_cell.split('\n')[1]
-                    if '(' in cabinet:
-                        cabinet = cabinet[:-3]
-                    if cabinet in free_cabinets:
-                        free_cabinets.remove(cabinet)
-                    else:
-                        print('EXCEPTION WHILE SEARCHING FREE CABINETS!')
-                        print(output_file_row, output_file_col, cabinet)
-                        print(free_cabinets)
-            ws_out.cell(9 + teacher_counter - 1, output_file_col).value = '\n'.join(free_cabinets)
+            # free_cabinets = CABINETS_WITH_EL_SCHOOL[:]
+            # for output_file_row in range(9, 9 + teacher_counter - 1):
+            #     if this_cell := ws_out.cell(output_file_row, output_file_col).value:
+            #         cabinet = this_cell.split('\n')[1]
+            #         if '(' in cabinet:
+            #             cabinet = cabinet[:-3]
+            #         if cabinet in free_cabinets:
+            #             free_cabinets.remove(cabinet)
+            #         else:
+            #             print('EXCEPTION WHILE SEARCHING FREE CABINETS!')
+            #             print(output_file_row, output_file_col, cabinet)
+            #             print(free_cabinets)
+            this_set = busy_cabinets_list_of_sets[output_file_col - 3]
+            free_cabinets = sorted(list(CABINETS_SET - this_set))
+            if not free_cabinets:
+                free_cabinets.append('НЕТ')
+            if len(free_cabinets) <= 10:
+                ws_out.cell(9 + teacher_counter - 1, output_file_col).value = '\n'.join(free_cabinets)
+
 
         return wb_out
 
@@ -369,7 +381,7 @@ def normalization_scenario(file):
     wb_out.save(f'{file.split(".")[0]}_NORM.xlsx')
     return wb_out
 
-def checking_differences_scenario(file1, file2, normalized1=False, normalized2=False, save_normalized=True, day=-1):
+def checking_class_differences_scenario(file1, file2, normalized1=False, normalized2=False, save_normalized=True, day=-1):
     wb_in1 = load_workbook(file1)
     wb_in2 = load_workbook(file2)
     toolbox = FuncToolBox()
@@ -387,13 +399,19 @@ def checking_differences_scenario(file1, file2, normalized1=False, normalized2=F
         wb_in1.save(f'{file1.split(".")[0]}_NORM.xlsx')
     if save_normalized and not 'NORM' in file2:
         wb_in2.save(f'{file2.split(".")[0]}_NORM.xlsx')
-    wb_out = toolbox.bold_difference(wb_in1, wb_in2)
+    wb_out = toolbox.bold_difference_in_lessons_files(wb_in1, wb_in2)
     if day == -1:
         wb_out.save(f'{file2.split(".")[0]}_DIFFERS.xlsx')
         return wb_out
     else:
         pass
 
+def checking_teachers_differences_scenario(file1, file2):
+    wb_in1 = load_workbook(file1)
+    wb_in2 = load_workbook(file2)
+    toolbox = FuncToolBox()
+    wb_out = toolbox.bold_difference_in_school_schedule(wb_in1, wb_in2)
+    wb_out.save(f'{file2.split(".")[0]}_DIFFERS.xlsx')
 
 def printing_teachers_schedule_scenario(file):
     toolbox = FuncToolBox()
@@ -414,6 +432,6 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
 
 
 
-
 if __name__ == '__main__':
-    normalization_scenario('пятница 4 10.xlsx')
+    printing_teachers_schedule_scenario('школа.xlsx')
+    # checking_teachers_differences_scenario('школа_PRINT.xlsx', 'школа TEST CHECKER.xlsx')
