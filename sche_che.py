@@ -1,12 +1,8 @@
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
-import argparse
 from tqdm import tqdm
 from openpyxl.utils import get_column_letter
-
-from db_models import Class, Schedule, Teacher, TeacherSchedule, Cabinet
-from database import get_db
 
 
 DAYS = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
@@ -111,7 +107,7 @@ class FuncToolBox(QObject):
             row += 1
         return new_wb
 
-    def bold_difference_in_school_schedule(self, old_wb, new_wb):
+    def bold_difference_in_school_schedule_teacher_ver(self, old_wb, new_wb):
         dif_cell_font = Font(bold=True)
         old_ws = old_wb.active
         new_ws = new_wb.active
@@ -134,6 +130,30 @@ class FuncToolBox(QObject):
             old_ws_active_row += 1
         return new_wb
 
+    def bold_difference_in_school_schedule_student_ver(self, old_wb, new_wb):
+        dif_cell_font = Font(bold=True)
+        old_ws = old_wb.active
+        new_ws = new_wb.active
+        new_ws_active_row = 7
+        old_ws_active_row = 7
+        while new_ws_active_row < new_ws.max_row:
+            if str(new_ws.cell(new_ws_active_row, 2).value) != str(old_ws.cell(new_ws_active_row, 2).value):
+                print(f'Расхождение в строке {new_ws_active_row}')
+                raise Exception
+            for col in range(3, len(new_ws[new_ws_active_row]) + 1):
+                if new_ws.cell(new_ws_active_row, col).value != old_ws.cell(old_ws_active_row, col).value:
+                    if new_ws.cell(new_ws_active_row, col).value is None:
+                        print(f'Изменения в {new_ws_active_row, col}: окно')
+                        new_ws.cell(new_ws_active_row, col).value = '-окно-'
+                    new_ws.cell(new_ws_active_row, col).font = dif_cell_font
+                    new_ws.cell(new_ws_active_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
+                                                                     fill_type='solid')
+                    print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
+            new_ws_active_row += 1
+            old_ws_active_row += 1
+        return new_wb
+
+
     def day_assemble(self, wb, day):
         # UNDER CONSTRUCTION
         res_wb = Workbook()
@@ -155,16 +175,15 @@ class FuncToolBox(QObject):
                 continue
         this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
 
-
     def search_teacher_window_by_lesson_n(self, wb, teacher_name, day_n_0, lesson_n):
         # ws
         pass
 
 
-    def create_common_teacher_schedule(self, school_wb):
+    def create_school_schedule_teacher_ver(self, school_wb):
         ELEMENTARY_SCHOOL_TEACHERS = {'Балахонова Е. М.', 'Горбачева Е. В.', 'Домашенкина О. В.', 'Киселева Н. И.',
                                       'Стражева Г. Н.', 'Чаркина О. В.', 'Ченцова Е. Н.', 'Даймичева Р. Ф.', 'Тихоненкова А. Н.',
-                                      'Смагина М. А.', 'Хретинина А. А.', 'Доронкина Л. В.', 'Мазина О. А.', 'Саватеева Г. А.',
+                                      'Смагина М. А.', 'Хретинина А. А.', 'Доронкина Л. В.', 'Мазина О. А.', 'Савватеева Г. А.',
                                       'Соколова Я. А.'}
         MAX_COL_INPUT_FILE = 111
         LESSONS_N = 11
@@ -246,7 +265,7 @@ class FuncToolBox(QObject):
 
         return wb_out
 
-    def create_common_pupils_schedule(self, normalized_wb):
+    def create_school_schedule_student_ver(self, normalized_wb):
         N_CLASS = 30
         MAX_COL = N_CLASS * 2 + 4
 
@@ -406,17 +425,17 @@ def checking_class_differences_scenario(file1, file2, normalized1=False, normali
     else:
         pass
 
-def checking_teachers_differences_scenario(file1, file2):
+def checking_school_schedule_teacher_ver_differences_scenario(file1, file2):
     wb_in1 = load_workbook(file1)
     wb_in2 = load_workbook(file2)
     toolbox = FuncToolBox()
-    wb_out = toolbox.bold_difference_in_school_schedule(wb_in1, wb_in2)
+    wb_out = toolbox.bold_difference_in_school_schedule_teacher_ver(wb_in1, wb_in2)
     wb_out.save(f'{file2.split(".")[0]}_DIFFERS.xlsx')
 
-def printing_teachers_schedule_scenario(file):
+def printing_school_schedule_teacher_ver_scenario(file):
     toolbox = FuncToolBox()
     wb = load_workbook(file)
-    res = toolbox.create_common_teacher_schedule(wb)
+    res = toolbox.create_school_schedule_teacher_ver(wb)
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
 
 def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=True):
@@ -426,10 +445,11 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
         wb = toolbox.row_normalization(wb)
     if save_normalized and not 'NORM' in file:
         wb.save(f'{file.split(".")[0]}_NORM.xlsx')
-    res = toolbox.create_common_pupils_schedule(wb)
+    res = toolbox.create_school_schedule_student_ver(wb)
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
 
 
 if __name__ == '__main__':
-    # printing_teachers_schedule_scenario('школа.xlsx')
-    checking_teachers_differences_scenario('школа_PRINT.xlsx', 'школа TEST CHECKER.xlsx')
+    # checking_class_differences_scenario('классы октбярь_NORM.xlsx', 'пятница без Плотниковой и Чибисовой.xlsx')
+    # printing_school_schedule_teacher_ver_scenario('школа ноябрь.xlsx')
+    checking_school_schedule_teacher_ver_differences_scenario('школа сентябрь_PRINT.xlsx', 'школа ноябрь_PRINT.xlsx')
