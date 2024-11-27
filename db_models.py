@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -13,8 +13,8 @@ class Class(Base):
     lessons_max = Column(Integer)
 
 
-class Schedule(Base):
-    __tablename__ = 'schedules'
+class Lesson(Base):
+    __tablename__ = 'lessons'
     id = Column(Integer, primary_key=True, index=True)
     class_id = Column(Integer, ForeignKey('classes.id'))
     day = Column(String)
@@ -37,6 +37,13 @@ class Teacher(Base):
     # specializations = relationship("TeacherSpecialization", back_populates="teacher")
     # schedules = relationship("Schedule", back_populates="teacher")
 
+    def __str__(self):
+        return f'{self.surname} {self.name_last_name}'
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class TeacherSpecialization(Base):
     __tablename__ = 'teacher_specializations'
     id = Column(Integer, primary_key=True, index=True)
@@ -46,17 +53,16 @@ class TeacherSpecialization(Base):
     # teacher = relationship("Teacher", back_populates="specializations")
     # subject = relationship("Subject", back_populates="teacher_specializations")
 
-class TeacherSchedule(Base):
-    __tablename__ = 'teacher_schedules'
+class ClassTeacherSubjectConnection(Base):
+    __tablename__ = 'class_teacher_subject_connections'
     id = Column(Integer, primary_key=True)
-    teacher_id = Column(Integer, ForeignKey('teachers.id'))
-    day = Column(String, nullable=False)
-    lesson_number = Column(Integer, nullable=False)
     class_id = Column(Integer, ForeignKey('classes.id'))
+    times_a_week = Column(Integer)
     subject_id = Column(Integer, ForeignKey('subjects.id'))
-    cabinet_id = Column(Integer, ForeignKey('cabinets.id'))
+    teacher_id = Column(Integer, ForeignKey('teachers.id'))
+    cabinet_id = Column(Integer, ForeignKey('cabinets.id'), nullable=True)
+    weekly = Column(Enum('every', 'even', 'odd', name='weekly'), default='every')
 
-    # teacher = relationship('Teacher', back_populates='schedules')
 
 class Subject(Base):
     __tablename__ = 'subjects'

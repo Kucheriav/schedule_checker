@@ -1,5 +1,5 @@
 from database import get_db
-from db_models import Class, Schedule, Teacher, TeacherSchedule, Cabinet
+from db_models import Class, Lesson, Teacher, TeacherSchedule, Cabinet
 
 class MainController:
     def __init__(self):
@@ -16,7 +16,7 @@ class MainController:
         self.db.add(class_)
         self.db.commit()
 
-        schedule = Schedule(class_id=class_.id, day='Понедельник', lesson_number=1, subject='Математика', cabinet='101')
+        schedule = Lesson(class_id=class_.id, day='Понедельник', lesson_number=1, subject='Математика', cabinet='101')
         self.db.add(schedule)
         self.db.commit()
 

@@ -1,6 +1,7 @@
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
+import argparse
 from tqdm import tqdm
 from openpyxl.utils import get_column_letter
 
@@ -175,12 +176,14 @@ class FuncToolBox(QObject):
                 continue
         this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
 
+
     def search_teacher_window_by_lesson_n(self, wb, teacher_name, day_n_0, lesson_n):
         # ws
         pass
 
 
     def create_school_schedule_teacher_ver(self, school_wb):
+        ## в файле убирается столбец нумерации и специализации. должно остаться 111 столбцов
         ELEMENTARY_SCHOOL_TEACHERS = {'Балахонова Е. М.', 'Горбачева Е. В.', 'Домашенкина О. В.', 'Киселева Н. И.',
                                       'Стражева Г. Н.', 'Чаркина О. В.', 'Ченцова Е. Н.', 'Даймичева Р. Ф.', 'Тихоненкова А. Н.',
                                       'Смагина М. А.', 'Хретинина А. А.', 'Доронкина Л. В.', 'Мазина О. А.', 'Савватеева Г. А.',
