@@ -13,7 +13,6 @@ SUBJECTS = ['английский язык', 'биология', 'географ
             'русский язык', 'технология', 'физ. час', 'физика', 'физкультура', 'химия']
 
 
-
 def create_subjects(subj_list):
     with db:
         for subj in subj_list:
@@ -21,6 +20,7 @@ def create_subjects(subj_list):
             db.add(subject)
         db.commit()
     print('subject created!')
+
 
 def create_classes_from_file(filename):
     wb = load_workbook(filename)
@@ -35,6 +35,7 @@ def create_classes_from_file(filename):
         db.commit()
     print('classes created!')
 
+
 def create_cabinets_from_file(filename):
     wb = load_workbook(filename)
     ws = wb.active
@@ -45,6 +46,7 @@ def create_cabinets_from_file(filename):
             db.add(cabinet)
         db.commit()
     print('cabinets created!')
+
 
 def create_teachers_from_file(filename):
     wb = load_workbook(filename)
@@ -79,6 +81,7 @@ def create_teachers_specializations(filename):
                 db.add(specialization)
         db.commit()
     print('specializations created!')
+
 
 def create_class_teacher_subject_connetions(filename):
     wb = load_workbook(filename)
@@ -158,8 +161,6 @@ def create_schedule_from_file(filename):
 
 
                     row += 1
-
-
 
 
 if __name__ == '__main__':
