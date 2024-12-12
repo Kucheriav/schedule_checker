@@ -3,15 +3,17 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
 from openpyxl.utils import get_column_letter
 from tqdm import tqdm
-
+from os import path, getcwd
 import database
 import db_models
 
+CUR_SCHEDULES_FOLDER_PATH = path.join(getcwd(), 'current_version_schedules')
+RESULT_FOLDER = path.join(getcwd(), 'changed_schedules')
 DAYS = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница']
 CABINETS_WITH_EL_SCHOOL = ['101', '102', '103', '107', '201', '202', '203', '204', '205', '206', '207', '208', '209', '301', '302',
             '303', '304', '305', '306', '307', '308', '401', '402', '403', '404', '405', '406', '407', '408', '409',
             '411', '412', 'Акт.зал', 'СЗ', 'СЗ', 'СЗ', 'П']
-CABINETS = ['101', '102', '107', '208', '209', '301', '302', '303', '304', '305', '306', '307', '308', '401', '402',
+CABINETS = ['101', '102', '107', '206', '208', '209', '301', '302', '303', '304', '305', '306', '307', '308', '401', '402',
             '403', '404', '405', '406', '407', '408', '409', '411', '412',  'СЗ', 'СЗ', 'СЗ', 'П']
 CABINETS_SET = set(CABINETS)
 
@@ -81,8 +83,8 @@ class FuncToolBox(QObject):
         # 'Козлова В. Е.': {'lesson': 2, 'before': ('химия', 308), 'after': ('математика', 302)}
         # 'Грибова А. С.': {'lesson': 4, 'before': ('математика', 302), 'after': ('химия', 308)}
         # как это пофиксить наличия в базе расписания?
-        db = database.Database()
-        db.init_db()
+        # db = database.Database()
+        # db.init_db()
         cur_class = ''
         cur_class_id = None
         # {teacher : [{lesson: n, before: (subject, cabinet), after: (subject, cabinet)}, {} ....]}
@@ -114,17 +116,17 @@ class FuncToolBox(QObject):
                     for col in range(1, len(new_ws[cur_new_row]) + 1):
                         if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
                             # Делаем 1 раз для каждого класса. в конце действий по условию найденного слова Класс - сбрасываем
-                            if not cur_class_id:
-                                cur_class_id = \
-                                db.session.query(db_models.Class.id).filter(db_models.Class.name == cur_class).one()[0]
+                            # if not cur_class_id:
+                                # cur_class_id = \
+                                # db.session.query(db_models.Class.id).filter(db_models.Class.name == cur_class).one()[0]
                             # Они точно не совпадают. Может окно в новом
                             if new_ws.cell(cur_new_row, col).value is None:
                                 # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
                                 if col % 2 == 0:
                                     subject_after = 'окно'
                                     subject_before = old_ws.cell(cur_old_row, col).value
-                                    subject_before_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_before).one()[0]
+                                    # subject_before_id = db.session.query(db_models.Subject.id).filter(
+                                    #     db_models.Subject.name == subject_before).one()[0]
                                 else:
                                     cabinet_after = 'окно'
                                     cabinet_before = old_ws.cell(cur_old_row, col).value
@@ -135,59 +137,59 @@ class FuncToolBox(QObject):
                                 if col % 2 == 0:
                                     subject_before = 'окно'
                                     subject_after = new_ws.cell(cur_new_row, col).value
-                                    subject_after_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_after).one()[0]
+                                    # subject_after_id = db.session.query(db_models.Subject.id).filter(
+                                    #     db_models.Subject.name == subject_after).one()[0]
                                 else:
                                     cabinet_before = 'окно'
                                     cabinet_after = new_ws.cell(cur_new_row, col).value
                             # Может и там и там урок
-                            else:
+                            # else:
                                 # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
-                                if col % 2 == 0:
-                                    subject_before = subject_before = old_ws.cell(cur_old_row, col).value
-                                    subject_before_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_before).one()[0]
-                                    subject_after = new_ws.cell(cur_new_row, col).value
-                                    subject_after_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_after).one()[0]
-                                else:
-                                    cabinet_before = old_ws.cell(cur_old_row, col).value
-                                    cabinet_after = new_ws.cell(cur_new_row, col).value
+                                # if col % 2 == 0:
+                                #     subject_before = subject_before = old_ws.cell(cur_old_row, col).value
+                                #     subject_before_id = db.session.query(db_models.Subject.id).filter(
+                                #         db_models.Subject.name == subject_before).one()[0]
+                                #     subject_after = new_ws.cell(cur_new_row, col).value
+                                #     subject_after_id = db.session.query(db_models.Subject.id).filter(
+                                #         db_models.Subject.name == subject_after).one()[0]
+                                # else:
+                                #     cabinet_before = old_ws.cell(cur_old_row, col).value
+                                #     cabinet_after = new_ws.cell(cur_new_row, col).value
                             # не ясно по айди какого предмета (новго или старого) лезть в базу. выбираем не окно
-                            if subject_after != 'окно':
-                                key_subject_id = subject_after_id
-                            else:
-                                key_subject_id = subject_before_id
-                            print(cur_class, new_ws.cell(cur_new_row, col).value, old_ws.cell(cur_old_row, col).value)
-                            print(cur_class_id, key_subject_id)
-                            teacher_obj = db.session.query(db_models.Teacher).join(db_models.ClassTeacherSubjectConnection,
-                                db_models.ClassTeacherSubjectConnection.teacher_id == db_models.Teacher.id).filter(
-                                db_models.ClassTeacherSubjectConnection.class_id == cur_class_id,
-                                db_models.ClassTeacherSubjectConnection.subject_id == key_subject_id).one()
-                            print(col)
-                            if col % 2 != 0:
-                                teacher_name_in_dict = f'{teacher_obj.surname} {" ".join([x[0] + "." for x in teacher_obj.name_last_name.split()])}'
-                                print(teacher_name_in_dict)
-                                if teacher_name_in_dict in teachers_changes_dict:
-                                    teachers_changes_dict[teacher_name_in_dict].append({'lesson': lesson_number,
-                                                                              'before': (subject_before, cabinet_before),
-                                                                              'after': (subject_after, cabinet_after)})
-                                else:
-                                    print('кря кря')
-                                    teachers_changes_dict[teacher_name_in_dict] = [{'lesson': lesson_number,
-                                                                              'before': (subject_before, cabinet_before),
-                                                                              'after': (subject_after, cabinet_after)}]
+                            # if subject_after != 'окно':
+                            #     key_subject_id = subject_after_id
+                            # else:
+                            #     key_subject_id = subject_before_id
+                            # print(cur_class, new_ws.cell(cur_new_row, col).value, old_ws.cell(cur_old_row, col).value)
+                            # print(cur_class_id, key_subject_id)
+                            # teacher_obj = db.session.query(db_models.Teacher).join(db_models.ClassTeacherSubjectConnection,
+                            #     db_models.ClassTeacherSubjectConnection.teacher_id == db_models.Teacher.id).filter(
+                            #     db_models.ClassTeacherSubjectConnection.class_id == cur_class_id,
+                            #     db_models.ClassTeacherSubjectConnection.subject_id == key_subject_id).one()
+                            # print(col)
+                            # if col % 2 != 0:
+                            #     teacher_name_in_dict = f'{teacher_obj.surname} {" ".join([x[0] + "." for x in teacher_obj.name_last_name.split()])}'
+                            #     print(teacher_name_in_dict)
+                            #     if teacher_name_in_dict in teachers_changes_dict:
+                            #         teachers_changes_dict[teacher_name_in_dict].append({'lesson': lesson_number,
+                            #                                                   'before': (subject_before, cabinet_before),
+                            #                                                   'after': (subject_after, cabinet_after)})
+                            #     else:
+                            #         print('кря кря')
+                            #         teachers_changes_dict[teacher_name_in_dict] = [{'lesson': lesson_number,
+                            #                                                   'before': (subject_before, cabinet_before),
+                            #                                                   'after': (subject_after, cabinet_after)}]
                             new_ws.cell(cur_new_row, col).font = dif_cell_font
                             new_ws.cell(cur_new_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                              fill_type='solid')
                             print(cur_new_row, col)
                     cur_old_row += 1
                     cur_new_row += 1
-                    lesson_number += 1
+                #     lesson_number += 1
                 row = cur_new_row
             row += 1
             cur_class_id = ''
-        print(teachers_changes_dict)
+        # print(teachers_changes_dict)
         return new_wb
 
     def bold_difference_in_school_schedule_teacher_ver(self, old_wb, new_wb):
@@ -349,7 +351,9 @@ class FuncToolBox(QObject):
         return wb_out
 
     def create_school_schedule_student_ver(self, normalized_wb):
-        N_CLASS = 30
+        START_ROW_OUT = 7
+        START_COL_OUT = 3
+        N_CLASS = 24
         MAX_COL = N_CLASS * 2 + 4
 
         def create_frame():
@@ -376,6 +380,29 @@ class FuncToolBox(QObject):
             ws_out.cell(6, MAX_COL - 1).alignment = Alignment(textRotation=90)
             ws_out.cell(6, MAX_COL - 1).value = 'Урок'
 
+        def minimize_lesson_cabinet(lesson: str, cabinet: str):
+            new_lesson = ''
+            new_cabinet = ''
+            if 'С' in cabinet:
+                new_cabinet = 'СЗ'
+            elif "П" in cabinet:
+                new_cabinet = 'П'
+            elif "А" in cabinet:
+                new_cabinet = 'АЗ'
+            else:
+                new_cabinet = cabinet
+
+            if 'английский язык' in lesson:
+                new_lesson = lesson.replace('английский язык', 'англ. яз.')
+            elif 'обществознание' in lesson:
+                new_lesson = lesson.replace('обществознание', 'общ-знание')
+            elif 'профориентация' in lesson:
+                new_lesson = lesson.replace('профориентация', 'профориент')
+            else:
+                new_lesson = lesson
+
+            return new_lesson, new_cabinet
+
         def copying_middle_school():
             nonlocal class_counter, row_in
             ws_out.cell(6, 3 + class_counter * 2).value = this_class
@@ -383,19 +410,15 @@ class FuncToolBox(QObject):
             pbar.update(3)
             lesson_counter = 0
             while ws_in.cell(row_in, 1).value:
-
                 for day_counter in range(5):
                     lesson = ws_in.cell(row_in, 2 + day_counter * 2).value
                     cabinet = str(ws_in.cell(row_in, 2 + day_counter * 2 + 1).value)
+                    this_row = START_ROW_OUT + day_counter * 10 + lesson_counter
+                    this_col = START_COL_OUT + class_counter * 2
                     if lesson:
-                        if 'С' in cabinet:
-                            cabinet = 'СЗ'
-                        if "П" in cabinet:
-                            cabinet = 'П'
-                        if "А" in cabinet:
-                            cabinet = 'АЗ'
-                        ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = lesson
-                        ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value = cabinet
+                        lesson, cabinet = minimize_lesson_cabinet(lesson, cabinet)
+                        ws_out.cell(this_row, this_col).value = lesson
+                        ws_out.cell(this_row, this_col + 1).value = cabinet
                 lesson_counter += 1
                 pbar.update(1)
                 row_in += 1
@@ -416,24 +439,19 @@ class FuncToolBox(QObject):
                         lesson = ws_in.cell(row_in, 2 + day_counter * 2).value
                         cabinet = str(ws_in.cell(row_in, 2 + day_counter * 2 + 1).value)
                         if lesson:
-                            if 'С' in cabinet:
-                                cabinet = 'СЗ'
-                            if "П" in cabinet:
-                                cabinet = 'П'
-                            if "А" in cabinet:
-                                cabinet = 'АЗ'
-
+                            lesson, cabinet = minimize_lesson_cabinet(lesson, cabinet)
+                            this_row = START_ROW_OUT + day_counter * 10 + lesson_counter
+                            this_col = START_COL_OUT + class_counter * 2
                             # учитываем, что если у групп общий предмет - его не надо дублировать и подписывать группы
-                            if not ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value:
-                                ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = f'{this_class.split("_")[1]}-{lesson}'
-                                ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value = cabinet
+                            if not ws_out.cell(this_row, this_col).value:
+                                ws_out.cell(this_row, this_col).value = f'{this_class.split("_")[1]}-{lesson}'
+                                ws_out.cell(this_row, this_col + 1).value = cabinet
                             else:
-                                if ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value != cabinet:
-                                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value += f'\n{this_class.split("_")[1]}-{lesson}'
-                                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2 + 1).value += f'\n{cabinet}'
+                                if ws_out.cell(this_row, this_col + 1).value != cabinet:
+                                    ws_out.cell(this_row, this_col).value += f'\n{this_class.split("_")[1]}-{lesson}'
+                                    ws_out.cell(this_row, this_col + 1).value += f'\n{cabinet}'
                                 else:
-                                    ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value = (
-                                        ws_out.cell(7 + day_counter * 10 + lesson_counter, 3 + class_counter * 2).value.split('-'))[-1]
+                                    ws_out.cell(this_row, this_col).value = ws_out.cell(this_row, this_col).value.split('-')[-1]
 
                     lesson_counter += 1
                     pbar.update(1)
@@ -451,7 +469,6 @@ class FuncToolBox(QObject):
         ws_out = wb_out.active
         ws_in = normalized_wb.active
         create_frame()
-        wb_out.save('what.xlsx')
         class_counter = 0
         pbar = tqdm(total=ws_in.max_row)
         row_in = 1
@@ -467,6 +484,7 @@ class FuncToolBox(QObject):
             else:
                 copying_middle_school()
 
+        # впихиваемся в лист
         for col in range(3, MAX_COL):
             if col % 2 == 0:
                 ws_out.column_dimensions[get_column_letter(col)].width = 38 * 0.138
@@ -503,7 +521,8 @@ def checking_class_differences_scenario(file1, file2, normalized1=False, normali
         wb_in2.save(f'{file2.split(".")[0]}_NORM.xlsx')
     wb_out = toolbox.bold_difference_in_lessons_files(wb_in1, wb_in2)
     if day == -1:
-        wb_out.save(f'{file2.split(".")[0]}_DIFFERS.xlsx')
+        filename = f'{file2.split(".")[0]}_DIFFERS.xlsx'
+        wb_out.save(path.join(RESULT_FOLDER, filename))
         return wb_out
     else:
         pass
@@ -515,6 +534,14 @@ def checking_school_schedule_teacher_ver_differences_scenario(file1, file2):
     wb_out = toolbox.bold_difference_in_school_schedule_teacher_ver(wb_in1, wb_in2)
     wb_out.save(f'{file2.split(".")[0]}_DIFFERS.xlsx')
 
+def checking_school_schedule_pupils_ver_differences_scenario(base_filename, new_filenanme):
+    old_pupils_schedule = load_workbook(base_filename)
+    new_pupils_schedule = load_workbook(new_filenanme)
+    tool = FuncToolBox()
+    diff_schedule = tool.bold_difference_in_school_schedule_student_ver(old_pupils_schedule, new_pupils_schedule)
+    res_filename = f'{'классы без началки_NORM_PRINT.xlsx'.split(".")[0]}_DIFF.xlsx'
+    diff_schedule.save(path.join(RESULT_FOLDER, res_filename))
+    print('done!')
 def printing_school_schedule_teacher_ver_scenario(file):
     toolbox = FuncToolBox()
     wb = load_workbook(file)
@@ -532,5 +559,14 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
 
 
+
 if __name__ == '__main__':
-    checking_class_differences_scenario('ноябрь классы_NORM.xlsx', 'test_классы_NORM.xlsx')
+    # normalization_scenario('расписание учеников.xlsx')
+
+    checking_class_differences_scenario(path.join(CUR_SCHEDULES_FOLDER_PATH, 'расписание учеников_NORM.xlsx'), 'птя.xlsx')
+    # printing_school_schedule_teacher_ver_scenario('школа ноябрь правки.xlsx')
+    # printing_school_schedule_teacher_ver_scenario('школа началка FREE.xlsx')
+    # checking_school_schedule_teacher_ver_differences_scenario('школа ноябрь правки_PRINT.xlsx', 'школа началка FREE_PRINT.xlsx')
+    # printing_pupils_schedule_scenario('классы без началки.xlsx')
+
+    # checking_school_schedule_pupils_ver_differences_scenario(path.join(CUR_SCHEDULES_FOLDER_PATH, 'проект расписания по классам.xlsx'), 'классы без началки_PRINT.xlsx')
