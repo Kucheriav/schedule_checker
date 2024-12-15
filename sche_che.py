@@ -615,4 +615,4 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     print('done!')
 
 if __name__ == '__main__':
-    checking_class_differences_scenario('понедельник_DIFFERS.xlsx', day=5)
+    checking_class_differences_scenario('16_12.xlsx', day=1)
