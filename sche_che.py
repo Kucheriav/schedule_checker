@@ -3,6 +3,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from PyQt5.QtCore import QObject, pyqtSignal
 from openpyxl.utils import get_column_letter
 from tqdm import tqdm
+from copy import copy
 from os import path, getcwd
 import database
 import db_models
@@ -56,6 +57,7 @@ class FuncToolBox(QObject):
                 next_row = ws[row + 1]
                 for this_row_cell, next_row_cell in zip(this_row, next_row):
                     if next_row_cell.value is not None:
+                        print()
                         this_row_cell.value = f'{this_row_cell.value}\n{next_row_cell.value}'
                 ws_out.append([cell.value for cell in this_row])
                 if ':' in str(ws_out.cell(row_out, 1).value):
@@ -137,7 +139,6 @@ class FuncToolBox(QObject):
         new_ws = new_wb.active
         new_ws_active_row = 7
         old_ws_active_row = 7
-        dif_cell_font = Font(bold=True)
         while new_ws_active_row < new_ws.max_row:
             if str(new_ws.cell(new_ws_active_row, 2).value) != str(old_ws.cell(new_ws_active_row, 2).value):
                 print(f'Расхождение в строке {new_ws_active_row}')
@@ -148,7 +149,7 @@ class FuncToolBox(QObject):
 
                         print(f'Изменения в {new_ws_active_row, col}: окно')
                         new_ws.cell(new_ws_active_row, col).value = '-окно-'
-                    new_ws.cell(new_ws_active_row, col).font = dif_cell_font
+                    new_ws.cell(new_ws_active_row, col).font = Font(bold=True)
                     new_ws.cell(new_ws_active_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                      fill_type='solid')
                     print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
@@ -157,27 +158,53 @@ class FuncToolBox(QObject):
         return new_wb
 
     def day_assemble(self, wb, day):
-        # UNDER CONSTRUCTION
         res_wb = Workbook()
         res_ws = res_wb.active
         ws_in = wb.active
         res_ws.append([None])
         res_ws.append([None])
+        # frame
         res_ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=1)
         res_ws.cell(1, 1).value = '№'
         for i in range(1, 12):
             res_ws.append([str(i)])
-        res_wb.save('test.xlsx')
+
         row_in = 1
-        pbar = tqdm(total=ws_in.max_row)
+        copy_counter = 0
         while row_in < ws_in.max_row:
-            if not ws_in.cell(row_in, 1).value or 'Класс' not in ws_in.cell(row_in, 1).value:
-                pbar.update(1)
+            if not('Класс' in str(ws_in.cell(row_in, 1).value)):
                 row_in += 1
                 continue
-        this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+            this_class = ws_in.cell(row_in, 1).value.split(' - ')[1]
+            this_class_row = row_in
+            row_in += 3
+            need_to_copy = False
+            while not (ws_in.cell(row_in, 1).value is None):
+                if ws_in.cell(row_in, day * 2).font.bold or ws_in.cell(row_in, day * 2 + 1).font.bold:
+                    need_to_copy = True
+                    break
+                row_in += 1
+
+            if need_to_copy:
+                start_lesson = 1
+                if '6' in this_class or '7' in this_class:
+                    start_lesson = 5
+                res_ws.cell(1, 1 + copy_counter * 2 + 1).value = this_class
+                res_ws.merge_cells(start_row=1, start_column=1 + copy_counter * 2 + 1, end_row=1, end_column=1 + copy_counter * 2 + 2)
+                res_ws.cell(2, 1 + copy_counter * 2 + 1).value = 'Предмет'
+                res_ws.cell(2, 1 + copy_counter * 2 + 2).value = 'Каб.'
+                for row in range(12 - start_lesson):
+                    for col in range(2):
+                        source_cell = ws_in.cell(this_class_row + 3 + row, day * 2 + col)
+                        target_cell = res_ws.cell(2 + start_lesson + row, 1 + copy_counter * 2 + col + 1)
+                        target_cell.value = source_cell.value
+                        target_cell.font = copy(source_cell.font)
+                        target_cell.fill = copy(source_cell.fill)
+                copy_counter += 1
+        return res_wb
 
     def search_teacher_window_by_lesson_n(self, wb, teacher_name, day_n_0, lesson_n):
+
         # ws
         pass
 
@@ -528,32 +555,29 @@ def normalization_scenario(file):
     wb_out.save(f'{file.split(".")[0]}_NORM.xlsx')
     return wb_out
 
-def checking_class_differences_scenario(file1, file2, normalized1=False, normalized2=False, save_normalized=True, day=-1):
-    wb_in1 = load_workbook(file1)
-    wb_in2 = load_workbook(file2)
+
+def checking_class_differences_scenario(changes_file, base_file='расписание учеников_NORM.xlsx', day=-1):
+    base_wb = load_workbook(path.join(CUR_SCHEDULES_FOLDER_PATH,base_file))
+    changes_wb = load_workbook(changes_file)
     toolbox = FuncToolBox()
-    # is_norm | norm in file | F
-    # 0       |       0      | 1
-    # 0       |       1      | 0
-    # 1       |       0      | 0
-    # 1       |       1      | 0
-    # not (a v b)
-    if not (normalized1 or 'NORM' in file1):
-        wb_in1 = toolbox.row_normalization(wb_in1)
-    if not (normalized2 or 'NORM' in file2):
-        wb_in2 = toolbox.row_normalization(wb_in2)
-    if save_normalized and not 'NORM' in file1:
-        wb_in1.save(f'{file1.split(".")[0]}_NORM.xlsx')
-    if save_normalized and not 'NORM' in file2:
-        wb_in2.save(f'{file2.split(".")[0]}_NORM.xlsx')
-    wb_out = toolbox.bold_difference_in_lessons_files(wb_in1, wb_in2)
+    if 'NORM' not in base_file:
+        base_wb = toolbox.row_normalization(base_wb)
+        base_wb.save(f'{base_file.split(".")[0]}_NORM.xlsx')
+    if 'NORM' not in changes_file:
+        changes_wb = toolbox.row_normalization(changes_wb)
+        changes_wb.save(f'{changes_file.split(".")[0]}_NORM.xlsx')
+
+    wb_differs = toolbox.bold_difference_in_lessons_files(base_wb, changes_wb)
     if day == -1:
-        filename = f'{file2.split(".")[0]}_DIFFERS.xlsx'
-        wb_out.save(path.join(RESULT_FOLDER_PATH, filename))
+        filename = f'{changes_file.split(".")[0]}_DIFFERS.xlsx'
+        wb_differs.save(path.join(RESULT_FOLDER_PATH, filename))
         print('done!')
-        return wb_out
     else:
-        pass
+        wb_differs_day = toolbox.day_assemble(wb_differs, day)
+        filename = f'{changes_file.split(".")[0]}_DIFFERS_DAY_{day}.xlsx'
+        wb_differs_day.save(path.join(RESULT_FOLDER_PATH, filename))
+        print('done!')
+
 
 def checking_school_schedule_teacher_ver_differences_scenario(file1, file2):
     wb_in1 = load_workbook(file1)
@@ -590,15 +614,5 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
     print('done!')
 
-
-
 if __name__ == '__main__':
-    # normalization_scenario('расписание учеников.xlsx')
-
-    checking_class_differences_scenario(path.join(CUR_SCHEDULES_FOLDER_PATH, 'расписание учеников_NORM.xlsx'), 'птя.xlsx')
-    # printing_school_schedule_teacher_ver_scenario('школа ноябрь правки.xlsx')
-    # printing_school_schedule_teacher_ver_scenario('школа началка FREE.xlsx')
-    # checking_school_schedule_teacher_ver_differences_scenario('школа ноябрь правки_PRINT.xlsx', 'школа началка FREE_PRINT.xlsx')
-    # printing_pupils_schedule_scenario('классы без началки.xlsx')
-
-    # checking_school_schedule_pupils_ver_differences_scenario(path.join(CUR_SCHEDULES_FOLDER_PATH, 'проект расписания по классам.xlsx'), 'классы без началки_PRINT.xlsx')
+    checking_class_differences_scenario('понедельник_DIFFERS.xlsx', day=5)
