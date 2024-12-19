@@ -57,7 +57,6 @@ class FuncToolBox(QObject):
                 next_row = ws[row + 1]
                 for this_row_cell, next_row_cell in zip(this_row, next_row):
                     if next_row_cell.value is not None:
-                        print()
                         this_row_cell.value = f'{this_row_cell.value}\n{next_row_cell.value}'
                 ws_out.append([cell.value for cell in this_row])
                 if ':' in str(ws_out.cell(row_out, 1).value):
@@ -84,7 +83,7 @@ class FuncToolBox(QObject):
         old_row = 1
         while row < new_ws.max_row:
             if 'Класс' in str(new_ws.cell(row, 1).value):
-                print(new_ws.cell(row, 1).value, row)
+                # print(new_ws.cell(row, 1).value, row)
                 flag = False
                 for x in range(old_row, old_ws.max_row + 1):
                     if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
@@ -104,7 +103,7 @@ class FuncToolBox(QObject):
                             new_ws.cell(cur_new_row, col).font = dif_cell_font
                             new_ws.cell(cur_new_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                              fill_type='solid')
-                            print(cur_new_row, col)
+                            # print(cur_new_row, col)
                     cur_old_row += 1
                     cur_new_row += 1
                 row = cur_new_row
@@ -124,12 +123,12 @@ class FuncToolBox(QObject):
             for col in range(1, len(new_ws[new_ws_active_row]) + 1):
                 if new_ws.cell(new_ws_active_row, col).value != old_ws.cell(old_ws_active_row, col).value:
                     if new_ws.cell(new_ws_active_row, col).value is None:
-                        print(f'Изменения в {new_ws_active_row, col}: окно')
+                        # print(f'Изменения в {new_ws_active_row, col}: окно')
                         new_ws.cell(new_ws_active_row, col).value = '-окно-'
                     new_ws.cell(new_ws_active_row, col).font = dif_cell_font
                     new_ws.cell(new_ws_active_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                      fill_type='solid')
-                    print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
+                    # print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
             new_ws_active_row += 1
             old_ws_active_row += 1
         return new_wb
@@ -147,12 +146,12 @@ class FuncToolBox(QObject):
                 if new_ws.cell(new_ws_active_row, col).value != old_ws.cell(old_ws_active_row, col).value:
                     if new_ws.cell(new_ws_active_row, col).value is None:
 
-                        print(f'Изменения в {new_ws_active_row, col}: окно')
+                        # print(f'Изменения в {new_ws_active_row, col}: окно')
                         new_ws.cell(new_ws_active_row, col).value = '-окно-'
                     new_ws.cell(new_ws_active_row, col).font = Font(bold=True)
                     new_ws.cell(new_ws_active_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                      fill_type='solid')
-                    print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
+                    # print(f'Изменения в {new_ws_active_row, col}: {new_ws.cell(new_ws_active_row, col).value}')
             new_ws_active_row += 1
             old_ws_active_row += 1
         return new_wb
@@ -448,9 +447,7 @@ class FuncToolBox(QObject):
         while row < new_ws.max_row:
             if 'Класс' in str(new_ws.cell(row, 1).value):
                 cur_class = new_ws.cell(row, 1).value.split(' - ')[1]
-                if cur_class == '10а_гум':
-                    print('кря!')
-                print(new_ws.cell(row, 1).value, row)
+                # print(new_ws.cell(row, 1).value, row)
                 flag = False
                 for x in range(old_row, old_ws.max_row + 1):
                     if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
@@ -615,4 +612,4 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     print('done!')
 
 if __name__ == '__main__':
-    checking_class_differences_scenario('16_12.xlsx', day=1)
+    checking_class_differences_scenario('fr 20 12.xlsx', day=5)
