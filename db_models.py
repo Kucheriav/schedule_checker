@@ -23,10 +23,6 @@ class Lesson(Base):
     cabinet_id = Column(Integer, ForeignKey('cabinets.id'))
     teacher_id = Column(Integer, ForeignKey('teachers.id'))
 
-    # class_ = relationship("Class", back_populates="schedules")
-    # subject = relationship("Subject", back_populates="schedules")
-    # cabinet = relationship("Cabinet", back_populates="schedules")
-    # teacher = relationship("Teacher", back_populates="schedules")
 
 class Teacher(Base):
     __tablename__ = 'teachers'
@@ -34,8 +30,6 @@ class Teacher(Base):
     surname = Column(String, index=True)
     name_last_name = Column(String)
     base_cabinet = Column(Integer, ForeignKey('cabinets.id'))
-    # specializations = relationship("TeacherSpecialization", back_populates="teacher")
-    # schedules = relationship("Schedule", back_populates="teacher")
 
     def __str__(self):
         return f'{self.surname} {self.name_last_name}'
@@ -50,8 +44,6 @@ class TeacherSpecialization(Base):
     teacher_id = Column(Integer, ForeignKey('teachers.id'))
     subject_id = Column(Integer, ForeignKey('subjects.id'))
 
-    # teacher = relationship("Teacher", back_populates="specializations")
-    # subject = relationship("Subject", back_populates="teacher_specializations")
 
 class ClassTeacherSubjectConnection(Base):
     __tablename__ = 'class_teacher_subject_connections'
@@ -68,8 +60,7 @@ class Subject(Base):
     __tablename__ = 'subjects'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, unique=True)
-    # schedules = relationship("Schedule", back_populates="subject")
-    # teacher_specializations = relationship("TeacherSpecialization", back_populates="subject")
+
 
 class Cabinet(Base):
     __tablename__ = 'cabinets'
@@ -77,4 +68,3 @@ class Cabinet(Base):
     number = Column(String, index=True, unique=True)
     capacity = Column(Integer)
 
-    # schedules = relationship("Schedule", back_populates="cabinet")

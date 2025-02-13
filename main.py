@@ -1,10 +1,10 @@
 from design import Ui_MainWindow
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel
-from openpyxl import load_workbook, Workbook
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog
+from openpyxl import load_workbook
 from sche_che import FuncToolBox
 import sys
 from database import init_db, get_db
-from db_controller import MainController
+from prev_version.db_controller import MainController
 from sche_che import load_data_from_excel, export_data_to_excel
 
 def check_database_empty():
