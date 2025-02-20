@@ -7,6 +7,7 @@ from copy import copy
 from os import path, getcwd
 import database
 import db_models
+from my_classes import TeacherChanges
 
 
 CUR_SCHEDULES_FOLDER_PATH = path.join(getcwd(), 'current_version_schedules')
@@ -426,7 +427,7 @@ class FuncToolBox(QObject):
                 ws_out.column_dimensions[get_column_letter(col)].width = 125 * 0.138
         return wb_out
 
-    def find_teacher_changes_in_student_schedule(self, old_wb, new_wb):
+    def find_teacher_changes_in_student_schedule(self, changed_wb:Workbook):
         # По учителям
         # не срабатывает если менялись уроки, а кабинет тот же. в словарь вносится запись на нечетном столбце
         # кабинета, а он не менялся. надо как-то выносить изпод условия несовпадения ячеек
@@ -438,111 +439,101 @@ class FuncToolBox(QObject):
         db.init_db()
         cur_class = ''
         cur_class_id = None
-        # {teacher : [{lesson: n, before: (subject, cabinet), after: (subject, cabinet)}, {} ....]}
+        # {teacher : TeacherChanges}
         teachers_changes_dict = dict()
-        old_ws = old_wb.active
-        new_ws = new_wb.active
-        row = 1
-        old_row = 1
-        while row < new_ws.max_row:
-            if 'Класс' in str(new_ws.cell(row, 1).value):
-                cur_class = new_ws.cell(row, 1).value.split(' - ')[1]
-                # print(new_ws.cell(row, 1).value, row)
-                flag = False
-                for x in range(old_row, old_ws.max_row + 1):
-                    if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
-                        old_row = x
-                        flag = True
-                        break
-                if not flag:
-                    print('No matches')
-                    raise Exception
-                cur_new_row = row + 3
-                cur_old_row = old_row + 3
-                lesson_number = 1
-                while not (new_ws.cell(cur_new_row, 1).value is None):
-                    for col in range(1, len(new_ws[cur_new_row]) + 1):
-                        if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
-                            # Делаем 1 раз для каждого класса. в конце действий по условию найденного слова Класс - сбрасываем
-                            if not cur_class_id:
-                                cur_class_id = \
-                                    db.session.query(db_models.Class.id).filter(
-                                        db_models.Class.name == cur_class).one()[0]
-                            # Они точно не совпадают. Может окно в новом
-                            if new_ws.cell(cur_new_row, col).value is None:
-                                # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
-                                if col % 2 == 0:
-                                    subject_after = 'окно'
-                                    subject_before = old_ws.cell(cur_old_row, col).value
-                                    subject_before_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_before).one()[0]
-                                else:
-                                    cabinet_after = 'окно'
-                                    cabinet_before = old_ws.cell(cur_old_row, col).value
-                            # Может в старом
-                            elif old_ws.cell(cur_old_row, col).value is None:
-                                # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
-                                if col % 2 == 0:
-                                    subject_before = 'окно'
-                                    subject_after = new_ws.cell(cur_new_row, col).value
-                                    subject_after_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_after).one()[0]
-                                else:
-                                    cabinet_before = 'окно'
-                                    cabinet_after = new_ws.cell(cur_new_row, col).value
-                            # Может и там и там урок
-                            else:
-                                # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
-                                if col % 2 == 0:
-                                    subject_before = subject_before = old_ws.cell(cur_old_row, col).value
-                                    subject_before_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_before).one()[0]
-                                    subject_after = new_ws.cell(cur_new_row, col).value
-                                    subject_after_id = db.session.query(db_models.Subject.id).filter(
-                                        db_models.Subject.name == subject_after).one()[0]
-                                else:
-                                    cabinet_before = old_ws.cell(cur_old_row, col).value
-                                    print('---->', new_ws.cell(cur_new_row, col).value, '<-----')
-                                    cabinet_after = new_ws.cell(cur_new_row, col).value
-                            # не ясно по айди какого предмета (новго или старого) лезть в базу. выбираем не окно
-                            if subject_after != 'окно':
-                                key_subject_id = subject_after_id
-                            else:
-                                key_subject_id = subject_before_id
-                            print(cur_class, new_ws.cell(cur_new_row, col).value,
-                                  old_ws.cell(cur_old_row, col).value)
-                            print(cur_class_id, key_subject_id)
-                            teacher_obj = db.session.query(db_models.Teacher).join(
-                                db_models.ClassTeacherSubjectConnection,
-                                db_models.ClassTeacherSubjectConnection.teacher_id == db_models.Teacher.id).filter(
-                                db_models.ClassTeacherSubjectConnection.class_id == cur_class_id,
-                                db_models.ClassTeacherSubjectConnection.subject_id == key_subject_id).one()
-                            print(col)
-                            if col % 2 != 0:
-                                teacher_name_in_dict = f'{teacher_obj.surname} {" ".join([x[0] + "." for x in teacher_obj.name_last_name.split()])}'
-                                print(teacher_name_in_dict)
-                                if teacher_name_in_dict in teachers_changes_dict:
-                                    teachers_changes_dict[teacher_name_in_dict].append({'lesson': lesson_number,
-                                                                                        'before': (subject_before,
-                                                                                                   cabinet_before),
-                                                                                        'after': (subject_after,
-                                                                                                  cabinet_after)})
-                                else:
-                                    print('кря кря')
-                                    teachers_changes_dict[teacher_name_in_dict] = [{'lesson': lesson_number,
-                                                                                    'before': (
-                                                                                    subject_before, cabinet_before),
-                                                                                    'after': (
-                                                                                    subject_after, cabinet_after)}]
-                            print(cur_new_row, col)
-                    cur_old_row += 1
-                    cur_new_row += 1
-                    lesson_number += 1
-                row = cur_new_row
-            row += 1
-            cur_class_id = ''
-        print(teachers_changes_dict)
-        return teachers_changes_dict
+        changed_ws = changed_wb.active
+        for col in range(2, changed_ws.max_column, 2):
+            cur_class = changed_ws.cell(1, col).value
+            cur_class_id =  db.session.query(db_models.Class.id).filter(db_models.Class.name == cur_class).one()[0]
+            print(cur_class, cur_class_id)
+            start_row = 3
+            for row in range(3, changed_ws.max_row):
+                if changed_ws.cell(row, col).font and changed_ws.cell(row, col).font.b:
+                    print(changed_ws.cell(row, col).value, '-', changed_ws.cell(row, col + 1).value)
+            print()
+        #         while not (new_ws.cell(cur_new_row, 1).value is None):
+        #             for col in range(1, len(new_ws[cur_new_row]) + 1):
+        #                 if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
+        #                     # Делаем 1 раз для каждого класса. в конце действий по условию найденного слова Класс - сбрасываем
+        #                     if not cur_class_id:
+        #                         cur_class_id = \
+        #                             db.session.query(db_models.Class.id).filter(
+        #                                 db_models.Class.name == cur_class).one()[0]
+        #                     # Они точно не совпадают. Может окно в новом
+        #                     if new_ws.cell(cur_new_row, col).value is None:
+        #                         # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
+        #                         if col % 2 == 0:
+        #                             subject_after = 'окно'
+        #                             subject_before = old_ws.cell(cur_old_row, col).value
+        #                             subject_before_id = db.session.query(db_models.Subject.id).filter(
+        #                                 db_models.Subject.name == subject_before).one()[0]
+        #                         else:
+        #                             cabinet_after = 'окно'
+        #                             cabinet_before = old_ws.cell(cur_old_row, col).value
+        #                     # Может в старом
+        #                     elif old_ws.cell(cur_old_row, col).value is None:
+        #                         # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
+        #                         if col % 2 == 0:
+        #                             subject_before = 'окно'
+        #                             subject_after = new_ws.cell(cur_new_row, col).value
+        #                             subject_after_id = db.session.query(db_models.Subject.id).filter(
+        #                                 db_models.Subject.name == subject_after).one()[0]
+        #                         else:
+        #                             cabinet_before = 'окно'
+        #                             cabinet_after = new_ws.cell(cur_new_row, col).value
+        #                     # Может и там и там урок
+        #                     else:
+        #                         # Цикл идет по всем столбцам. В нечетных - кабинет, в четных предмет
+        #                         if col % 2 == 0:
+        #                             subject_before = subject_before = old_ws.cell(cur_old_row, col).value
+        #                             subject_before_id = db.session.query(db_models.Subject.id).filter(
+        #                                 db_models.Subject.name == subject_before).one()[0]
+        #                             subject_after = new_ws.cell(cur_new_row, col).value
+        #                             subject_after_id = db.session.query(db_models.Subject.id).filter(
+        #                                 db_models.Subject.name == subject_after).one()[0]
+        #                         else:
+        #                             cabinet_before = old_ws.cell(cur_old_row, col).value
+        #                             print('---->', new_ws.cell(cur_new_row, col).value, '<-----')
+        #                             cabinet_after = new_ws.cell(cur_new_row, col).value
+        #                     # не ясно по айди какого предмета (новго или старого) лезть в базу. выбираем не окно
+        #                     if subject_after != 'окно':
+        #                         key_subject_id = subject_after_id
+        #                     else:
+        #                         key_subject_id = subject_before_id
+        #                     print(cur_class, new_ws.cell(cur_new_row, col).value,
+        #                           old_ws.cell(cur_old_row, col).value)
+        #                     print(cur_class_id, key_subject_id)
+        #                     teacher_obj = db.session.query(db_models.Teacher).join(
+        #                         db_models.ClassTeacherSubjectConnection,
+        #                         db_models.ClassTeacherSubjectConnection.teacher_id == db_models.Teacher.id).filter(
+        #                         db_models.ClassTeacherSubjectConnection.class_id == cur_class_id,
+        #                         db_models.ClassTeacherSubjectConnection.subject_id == key_subject_id).one()
+        #                     print(col)
+        #                     if col % 2 != 0:
+        #                         teacher_name_in_dict = f'{teacher_obj.surname} {" ".join([x[0] + "." for x in teacher_obj.name_last_name.split()])}'
+        #                         print(teacher_name_in_dict)
+        #                         if teacher_name_in_dict in teachers_changes_dict:
+        #                             teachers_changes_dict[teacher_name_in_dict].append({'lesson': lesson_number,
+        #                                                                                 'before': (subject_before,
+        #                                                                                            cabinet_before),
+        #                                                                                 'after': (subject_after,
+        #                                                                                           cabinet_after)})
+        #                         else:
+        #                             print('кря кря')
+        #                             teachers_changes_dict[teacher_name_in_dict] = [{'lesson': lesson_number,
+        #                                                                             'before': (
+        #                                                                             subject_before, cabinet_before),
+        #                                                                             'after': (
+        #                                                                             subject_after, cabinet_after)}]
+        #                     print(cur_new_row, col)
+        #             cur_old_row += 1
+        #             cur_new_row += 1
+        #             lesson_number += 1
+        #         row = cur_new_row
+        #     row += 1
+        #     cur_class_id = ''
+        # print(teachers_changes_dict)
+        # return teachers_changes_dict
 
 
 def normalization_scenario(file):
@@ -612,4 +603,9 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     print('done!')
 
 if __name__ == '__main__':
-    checking_class_differences_scenario('fr 20 12.xlsx', day=5)
+    checking_class_differences_scenario('21 02.xlsx', day=5)
+
+
+# if __name__ == '__main__':
+#     toolbox = FuncToolBox()
+#     toolbox.find_teacher_changes_in_student_schedule(load_workbook(path.join(RESULT_FOLDER_PATH, '10 02_DIFFERS_DAY_1.xlsx')))
