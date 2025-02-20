@@ -8,6 +8,7 @@ import database
 from sche_che import FuncToolBox
 
 DATA_FOLDER = 'data'
+SCHEDULE_FOLDER = 'current_version_schedules'
 SUBJECTS = ['английский язык', 'биология', 'география', 'ИЗО', 'информатика', 'история', 'литература', 'математика',
             'музыка', 'ОБЗР', 'обществознание', 'ОДКНР', 'природоведение', 'проект', 'профориентация', 'РоВ',
             'русский язык', 'технология', 'физ. час', 'физика', 'физкультура', 'химия']
@@ -100,10 +101,11 @@ def create_class_teacher_subject_connetions(filename):
             teacher = ws.cell(i, 7).value
             teacher_surname = teacher.split(' ')[0]
             cabinet = ws.cell(i, 8).value
-            week = ws.cell(i, 11).value
+            week = 'odd' if ws.cell(i, 11).value == 'Неч' else 'even'
 
             subject_id = db.session.query(db_models.Subject.id).filter(db_models.Subject.name == subject).one()[0]
             _teachers = db.session.query(db_models.Teacher).filter(db_models.Teacher.surname == teacher_surname).all()
+            teacher_id = None
             if len(_teachers) > 1:
                 for _t in _teachers:
                     x = _t.name_last_name.split(' ')[1][0]
@@ -129,6 +131,7 @@ def create_class_teacher_subject_connetions(filename):
 
 
 def create_schedule_from_file(filename):
+    # недоделано. неясно как реализовывать рапсиание
     wb = load_workbook(filename)
     toolbox = FuncToolBox()
     if 'NORM' not in filename:
@@ -138,9 +141,9 @@ def create_schedule_from_file(filename):
     with db:
         while row < ws.max_row:
             if 'Класс' in (x := str(ws.cell(row, 1).value)):
-                print(x)
                 this_class = x.split(' - ')[1]
                 class_id = db.session.query(db_models.Class.id).filter(db_models.Class.name == this_class).one()[0]
+                print(class_id)
                 row += 3
                 while lesson_n := ws.cell(row, 1).value:
                     lesson_n = int(lesson_n.split(':')[-1])
@@ -151,25 +154,36 @@ def create_schedule_from_file(filename):
                         if not subject:
                             col += 2
                             continue
+                        if 'информатика' in subject and 'английский' in subject:
+                            pass
+                        elif 'английский' in subject:
+                            pass
+                        elif 'технология' in subject:
+                            pass
+                        elif 'физкультура' in subject:
+                            pass
+                        else:
+                            pass
                         subject_id = db.session.query(db_models.Subject.id).filter(db_models.Subject.name == subject).one()[0]
-                        col += 1
-                        cabinet = ws.cell(row, col).value
-                        cabinet_id = db.session.query(db_models.Cabinet.id).filter(db_models.Cabinet.name == cabinet).one()[0]
+                #         col += 1
+                #         cabinet = ws.cell(row, col).value
+                #         cabinet_id = db.session.query(db_models.Cabinet.id).filter(db_models.Cabinet.name == cabinet).one()[0]
+                #
+                #
 
-
-
-                    row += 1
+            row += 1
 
 
 if __name__ == '__main__':
     db = database.Database()
-    db.drop_db()
     db.init_db()
-    create_subjects(SUBJECTS)
-    create_classes_from_file(os.path.join(DATA_FOLDER, 'classes_list.xlsx'))
-    create_cabinets_from_file(os.path.join(DATA_FOLDER, 'rooms_list.xlsx'))
-    create_teachers_from_file(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
-    create_teachers_specializations(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
-    create_class_teacher_subject_connetions(os.path.join(DATA_FOLDER, 'connections.xlsx'))
+    # db.recreate_db()
+    # create_subjects(SUBJECTS)
+    # create_classes_from_file(os.path.join(DATA_FOLDER, 'classes_list.xlsx'))
+    # create_cabinets_from_file(os.path.join(DATA_FOLDER, 'rooms_list.xlsx'))
+    # create_teachers_from_file(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
+    # create_teachers_specializations(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
+    # create_class_teacher_subject_connetions(os.path.join(DATA_FOLDER, 'connections.xlsx'))
+    create_schedule_from_file(os.path.join(SCHEDULE_FOLDER, 'расписание учеников_NORM.xlsx'))
 
 

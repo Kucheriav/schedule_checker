@@ -84,7 +84,6 @@ class FuncToolBox(QObject):
         old_row = 1
         while row < new_ws.max_row:
             if 'Класс' in str(new_ws.cell(row, 1).value):
-                # print(new_ws.cell(row, 1).value, row)
                 flag = False
                 for x in range(old_row, old_ws.max_row + 1):
                     if old_ws.cell(x, 1).value == new_ws.cell(row, 1).value:
@@ -93,6 +92,9 @@ class FuncToolBox(QObject):
                         break
                 if not flag:
                     print('No matches')
+                    print(old_ws.cell(x, 1).value)
+                    print(x)
+                    print(new_ws.cell(row, 1).value)
                     raise Exception
                 cur_new_row = row + 3
                 cur_old_row = old_row + 3
