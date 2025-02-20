@@ -129,8 +129,6 @@ def create_class_teacher_subject_connetions(filename):
 
 
 def create_schedule_from_file(filename):
-    # пока не ясно как привязывать учителя. или надо попутноисктаь этов другом файле.
-    # или сначал создать таблицу связей учителей с предметами и классами
     wb = load_workbook(filename)
     toolbox = FuncToolBox()
     if 'NORM' not in filename:

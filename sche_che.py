@@ -23,7 +23,7 @@ CABINETS_SET = set(CABINETS)
 class FuncToolBox(QObject):
     progress_status = pyqtSignal(int)
 
-    def row_normalization(self, wb):
+    def row_normalization(self, wb:Workbook):
         # тащемта у нас всего два проблемных случая спаренной по вертикали строки
         # это когда шапка класса и собственно урок в двух кабинетах
         ws = wb.active
@@ -76,7 +76,7 @@ class FuncToolBox(QObject):
         pbar.close()
         return wb_out
 
-    def bold_difference_in_lessons_files(self, old_wb, new_wb):
+    def bold_difference_in_lessons_files(self, old_wb:Workbook, new_wb:Workbook):
         dif_cell_font = Font(bold=True)
         old_ws = old_wb.active
         new_ws = new_wb.active
@@ -97,12 +97,17 @@ class FuncToolBox(QObject):
                 cur_new_row = row + 3
                 cur_old_row = old_row + 3
                 while not (new_ws.cell(cur_new_row, 1).value is None):
-                    for col in range(1, len(new_ws[cur_new_row]) + 1):
-                        if new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value:
+                    for col in range(2, new_ws.max_column, 2):
+                        if ((new_ws.cell(cur_new_row, col).value != old_ws.cell(cur_old_row, col).value) or
+                            (new_ws.cell(cur_new_row, col + 1).value != old_ws.cell(cur_old_row, col + 1).value)):
                             if new_ws.cell(cur_new_row, col).value is None:
                                 new_ws.cell(cur_new_row, col).value = '-окно-'
+                                new_ws.cell(cur_new_row, col + 1).value = '-окно-'
                             new_ws.cell(cur_new_row, col).font = dif_cell_font
+                            new_ws.cell(cur_new_row, col + 1).font = dif_cell_font
                             new_ws.cell(cur_new_row, col).fill = PatternFill(start_color='ffff00', end_color='ffff00',
+                                                                             fill_type='solid')
+                            new_ws.cell(cur_new_row, col + 1).fill = PatternFill(start_color='ffff00', end_color='ffff00',
                                                                              fill_type='solid')
                             # print(cur_new_row, col)
                     cur_old_row += 1
@@ -602,10 +607,10 @@ def printing_pupils_schedule_scenario(file, normalized=False, save_normalized=Tr
     res.save(f'{file.split(".")[0]}_PRINT.xlsx')
     print('done!')
 
-if __name__ == '__main__':
-    checking_class_differences_scenario('21 02.xlsx', day=5)
-
-
 # if __name__ == '__main__':
-#     toolbox = FuncToolBox()
-#     toolbox.find_teacher_changes_in_student_schedule(load_workbook(path.join(RESULT_FOLDER_PATH, '10 02_DIFFERS_DAY_1.xlsx')))
+#     checking_class_differences_scenario('21 02.xlsx', day=5)
+
+
+if __name__ == '__main__':
+    toolbox = FuncToolBox()
+    toolbox.find_teacher_changes_in_student_schedule(load_workbook(path.join(RESULT_FOLDER_PATH, '10 02_DIFFERS_DAY_1.xlsx')))
