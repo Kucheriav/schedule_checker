@@ -131,7 +131,9 @@ def create_class_teacher_subject_connetions(filename):
 
 
 def create_schedule_from_file(filename):
-    # недоделано. неясно как реализовывать рапсиание
+    # что делать с уроками по чет-нечет? пока рассматривать как обычные
+    # замораживаем функцию: неясно по каким данным определять какой конкретно учиель англ в каком кабинете
+    # они не по алфавиту. придется таки смотреть в выгрузку расписания учителей
     wb = load_workbook(filename)
     toolbox = FuncToolBox()
     if 'NORM' not in filename:
@@ -143,35 +145,45 @@ def create_schedule_from_file(filename):
             if 'Класс' in (x := str(ws.cell(row, 1).value)):
                 this_class = x.split(' - ')[1]
                 class_id = db.session.query(db_models.Class.id).filter(db_models.Class.name == this_class).one()[0]
-                print(class_id)
+                print(this_class)
                 row += 3
-                while lesson_n := ws.cell(row, 1).value:
+                while lesson_n := str(ws.cell(row, 1).value):
+                    if lesson_n == 'None':
+                        break
                     lesson_n = int(lesson_n.split(':')[-1])
-                    print(f'lesson number {lesson_n}')
-                    col = 2
-                    while col <= 12:
-                        subject = ws.cell(row, col).value
-                        if not subject:
-                            col += 2
+                    for day in range(1, 6):
+                        subject = str(ws.cell(row, day * 2).value)
+                        cabinet = str(ws.cell(row, day * 2 + 1).value)
+                        if subject == 'None':
                             continue
-                        if 'информатика' in subject and 'английский' in subject:
-                            pass
-                        elif 'английский' in subject:
-                            pass
-                        elif 'технология' in subject:
-                            pass
-                        elif 'физкультура' in subject:
-                            pass
+                        subjects = [s.replace('(н)', '') for s in subject.split('\n')]
+                        cabinets = [c.replace('(н)', '') for c in cabinet.split('\n')]
+                        subject_cabinet_pairs = []
+                        if len(cabinets) > len(subjects):
+                            subject_cabinet_pairs.extend([(subjects[0], cabinets[0]), (subjects[0], cabinets[1])])
                         else:
-                            pass
-                        subject_id = db.session.query(db_models.Subject.id).filter(db_models.Subject.name == subject).one()[0]
-                #         col += 1
-                #         cabinet = ws.cell(row, col).value
-                #         cabinet_id = db.session.query(db_models.Cabinet.id).filter(db_models.Cabinet.name == cabinet).one()[0]
-                #
-                #
+                            for s in subjects:
+                                for c in cabinets:
+                                    subject_cabinet_pairs.append((s, c))
+                        for s, c in subject_cabinet_pairs:
 
+                            subject_id = db.session.query(db_models.Subject.id).filter(db_models.Subject.name == s).one()[0]
+                            cabinet_id = db.session.query(db_models.Cabinet.id).filter(db_models.Cabinet.number == c).one()[0]
+                            teacher_id = db.session.query(
+                                db_models.ClassTeacherSubjectConnection.teacher_id).with_entities(
+                                db_models.ClassTeacherSubjectConnection.teacher_id).filter(
+                                db_models.ClassTeacherSubjectConnection.subject_id == subject_id,
+                                db_models.ClassTeacherSubjectConnection.class_id == class_id).all()
+                            if s == 'английский язык':
+                                print(f'{day}, {lesson_n}')
+                                print(s, c)
+                                print(teacher_id)
+                                for t in teacher_id:
+                                    print(db.session.query(db_models.Teacher.surname).filter(db_models.Teacher.id == t[0]).one()[0], end= ' ')
+                                print()
+                    row += 1
             row += 1
+
 
 
 if __name__ == '__main__':
