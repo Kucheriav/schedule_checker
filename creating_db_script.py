@@ -137,7 +137,7 @@ def create_schedule_from_file(filename):
     wb = load_workbook(filename)
     toolbox = FuncToolBox()
     if 'NORM' not in filename:
-        wb = toolbox.row_normalization(wb)
+        wb = toolbox.class_schedule_row_normalization(wb)
     ws = wb.active
     row = 1
     with db:
@@ -185,17 +185,57 @@ def create_schedule_from_file(filename):
             row += 1
 
 
+def create_schedule_from_teacher_file(filename):
+    if 'PREP' not in filename:
+        print('Файл должен быть подготовлен. Первая строка - фамилия, далее везде между учителями ровно 1 строка')
+        print('После подоготовки файл сохранить с постфиксом _PREP')
+    wb = load_workbook(filename)
+    ws = wb.active
+    row  = 1
+    with db:
+        while row < ws.max_row:
+            fio_list =  ws.cell(row, 1).value.split()
+            teacher_obj_list = db.session.query(db_models.Teacher).filter(db_models.Teacher.surname == fio_list[0]).all()
+            teacher_id = None
+            if len(teacher_obj_list) > 1:
+                for t in teacher_obj_list:
+                    n, l_n = t.name_last_name.split()
+                    if n[0] == fio_list[1][0] and l_n[0] == fio_list[2][0]:
+                        teacher_id = t.id
+                        break
+            else:
+                teacher_id = teacher_obj_list[0].id
+            row += 2
+
+            for day in range(1, 6):
+                for lesson_n in range(1, 12):
+                    lesson_info = ws.cell(row + lesson_n, day * 2).value
+                    if '-' == lesson_info:
+                        continue
+                    cabinet_n = str(ws.cell(row + lesson_n, day * 2 + 1).value).replace('(н)', '')
+                    cabinet_id = db.session.query(db_models.Cabinet.id).filter(db_models.Cabinet.number == cabinet_n).one()[0]
+                    classes_list, subject = lesson_info.split('-')
+                    subject_id = db.session.query(db_models.Subject.id).filter(db_models.Subject.name == subject.replace('(н)', '')).one()[0]
+                    classes_list = classes_list.split(', ')
+                    for name in classes_list:
+                        class_id = db.session.query(db_models.Class.id).filter(db_models.Class.name == name.replace('(н)', '')).one()[0]
+                        lesson = db_models.Lesson(class_id=class_id, day=day, lesson_number=lesson_n,
+                                                  subject_id=subject_id, cabinet_id=cabinet_id, teacher_id=teacher_id)
+                        db.add(lesson)
+            db.commit()
+            row += 13
+    print('lessons created!')
 
 if __name__ == '__main__':
     db = database.Database()
     db.init_db()
-    # db.recreate_db()
-    # create_subjects(SUBJECTS)
-    # create_classes_from_file(os.path.join(DATA_FOLDER, 'classes_list.xlsx'))
-    # create_cabinets_from_file(os.path.join(DATA_FOLDER, 'rooms_list.xlsx'))
-    # create_teachers_from_file(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
-    # create_teachers_specializations(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
-    # create_class_teacher_subject_connetions(os.path.join(DATA_FOLDER, 'connections.xlsx'))
-    create_schedule_from_file(os.path.join(SCHEDULE_FOLDER, 'расписание учеников_NORM.xlsx'))
+    db.recreate_db()
+    create_subjects(SUBJECTS)
+    create_classes_from_file(os.path.join(DATA_FOLDER, 'classes_list.xlsx'))
+    create_cabinets_from_file(os.path.join(DATA_FOLDER, 'rooms_list.xlsx'))
+    create_teachers_from_file(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
+    create_teachers_specializations(os.path.join(DATA_FOLDER, 'teachers_list.xlsx'))
+    create_class_teacher_subject_connetions(os.path.join(DATA_FOLDER, 'connections.xlsx'))
+    create_schedule_from_teacher_file(os.path.join(SCHEDULE_FOLDER, 'расписание учителей_PREP.xlsx'))
 
 

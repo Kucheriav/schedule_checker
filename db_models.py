@@ -17,7 +17,7 @@ class Lesson(Base):
     __tablename__ = 'lessons'
     id = Column(Integer, primary_key=True, index=True)
     class_id = Column(Integer, ForeignKey('classes.id'))
-    day = Column(String)
+    day = Column(Integer)
     lesson_number = Column(Integer)
     subject_id = Column(Integer, ForeignKey('subjects.id'))
     cabinet_id = Column(Integer, ForeignKey('cabinets.id'))

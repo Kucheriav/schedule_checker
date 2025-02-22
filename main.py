@@ -52,16 +52,16 @@ class Window(QMainWindow, Ui_MainWindow):
     def compare_files(self):
 
         self.baseProgressBar.setMaximum(self.base_schedule.active.max_row)
-        self.base_schedule = self.old_file_preparation_task.row_normalization(self.base_schedule)
+        self.base_schedule = self.old_file_preparation_task.class_schedule_row_normalization(self.base_schedule)
 
         self.newProgressBar.setMaximum(self.new_schedule.active.max_row)
-        self.new_schedule = self.new_file_preparation_task.row_normalization(self.new_schedule)
+        self.new_schedule = self.new_file_preparation_task.class_schedule_row_normalization(self.new_schedule)
         if self.checkBox.isChecked():
             print(self.comboBox.currentText())
         checked_schedule = self.difference_search_task.bold_difference_in_lessons_files(self.base_schedule, self.new_schedule)
 
         if self.checkBox.isChecked():
-            checked_schedule = self.difference_search_task.day_assemble(checked_schedule, self.comboBox.currentIndex())
+            checked_schedule = self.difference_search_task.student_day_assemble(checked_schedule, self.comboBox.currentIndex())
 
         checked_schedule.save(f"{self.work_dir}/{self.newScheduleLabel.text().split('/')[1]}_checked.xlsx")
 
